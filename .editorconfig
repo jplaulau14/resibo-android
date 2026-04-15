@@ -1,0 +1,20 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 4
+
+[*.{kt,kts}]
+# Compose convention: @Composable fun Greeting() — uppercase function names are idiomatic.
+ktlint_standard_function-naming = disabled
+# Compose signatures often span lines in ways the default rule doesn't love.
+ktlint_standard_function-signature = disabled
+# Prefer block-bodied when-branches for readability; avoid churn on generated code.
+ktlint_standard_when-entry-bracing = disabled
+
+[*.{yml,yaml,json}]
+indent_size = 2

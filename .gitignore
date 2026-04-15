@@ -13,3 +13,19 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+# Model weights — fetched from R2/HF at runtime, never committed
+*.tflite
+*.litert
+*.gguf
+*.safetensors
+*.bin
+*.onnx
+
+# Secrets
+*.env
+.env.*
+!.env.example
+*.keystore
+*.jks
+key.properties
