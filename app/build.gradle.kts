@@ -61,6 +61,9 @@ dependencies {
     ksp(libs.hilt.compiler)
     implementation(libs.androidx.hilt.navigation.compose)
 
+    // On-device LLM inference (Gemma via Google AI Edge / MediaPipe)
+    implementation(libs.mediapipe.tasks.genai)
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
