@@ -3,30 +3,28 @@ package com.patslaurel.resibo.llm
 import android.content.Context
 import android.util.Log
 import com.google.mediapipe.tasks.genai.llminference.LlmInference
-import com.google.mediapipe.tasks.genai.llminference.LlmInferenceSession
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * On-device Gemma triage engine. Wraps the MediaPipe `LlmInference` API for the
- * 1B-class model used by the agent's first-pass triage step (language detect,
- * check-worthiness, atomic claim extraction).
+ * On-device Gemma triage engine. Wraps the MediaPipe `LlmInference` API for the 1B-class
+ * model used by the agent's first-pass triage step (language detect, check-worthiness,
+ * atomic claim extraction, domain routing).
  *
- * Model loading is lazy — the first [generate] call pays the load cost; subsequent
- * calls reuse the same [LlmInference] instance. Call [close] from the host Activity's
- * onDestroy if you want to free memory eagerly; otherwise process death handles it.
+ * Model loading is lazy — the first [generate] call pays the load cost; subsequent calls
+ * reuse the same [LlmInference] instance.
  *
- * Tonight's scope (T044 MVP): single-shot `generate(prompt)` returning the full
- * completion. Streaming via [LlmInferenceSession] and structured tool-call decoding
- * land in T045 and T050 respectively.
+ * Prompts live in `assets/prompts/` and can be overridden at runtime via adb push — see
+ * [PromptLoader].
  */
 @Singleton
 class LlmTriageEngine
     @Inject
     constructor(
         @ApplicationContext private val context: Context,
+        private val promptLoader: PromptLoader,
     ) {
         @Volatile private var llm: LlmInference? = null
 
@@ -35,26 +33,45 @@ class LlmTriageEngine
             get() = File(context.getExternalFilesDir(null), MODEL_FILENAME)
 
         /**
-         * Run the model on [prompt] and return the completion.
+         * Run the model on [userInput], wrapped with the triage system prompt and Gemma's
+         * `<start_of_turn>` chat format. Returns the completion.
          *
-         * @param modelPath path to a `.task` bundle. Defaults to [defaultModelPath].
-         * @param maxTokens upper bound on the response length (defaults to 256 — enough
-         *   for a Note draft, short enough to fit in ~90s on SD888 CPU).
-         * @throws IllegalStateException when [modelPath] does not exist — caller should
-         *   catch and prompt the user to side-load the `.task` via adb.
-         * @throws RuntimeException when MediaPipe itself fails (OOM, unsupported model).
+         * @param userInput raw text extracted from the shared post (the user's content — not
+         *   the system prompt; we wrap that for you)
+         * @param modelPath path to a `.task` bundle; defaults to [defaultModelPath]
+         * @param maxTokens upper bound on the response length
+         * @throws IllegalStateException when [modelPath] doesn't exist — catch and prompt the
+         *   user to side-load the `.task` via adb
          */
         fun generate(
-            prompt: String,
+            userInput: String,
             modelPath: File = defaultModelPath,
-            maxTokens: Int = 256,
+            maxTokens: Int = 512,
         ): String {
             val engine = ensureLoaded(modelPath, maxTokens)
+            val prompt = buildTriagePrompt(userInput)
             val started = System.currentTimeMillis()
             val result = engine.generateResponse(prompt)
             val elapsed = System.currentTimeMillis() - started
-            Log.i(TAG, "generate($maxTokens max tokens) took ${elapsed}ms")
+            Log.i(
+                TAG,
+                "generate(maxTokens=$maxTokens, promptChars=${prompt.length}, outputChars=${result.length}) " +
+                    "took ${elapsed}ms",
+            )
             return result
+        }
+
+        /**
+         * Run the model against an already-formatted prompt — bypasses system-prompt wrapping.
+         * Useful for diagnostics or when upstream code has its own templating.
+         */
+        fun generateRaw(
+            prompt: String,
+            modelPath: File = defaultModelPath,
+            maxTokens: Int = 512,
+        ): String {
+            val engine = ensureLoaded(modelPath, maxTokens)
+            return engine.generateResponse(prompt)
         }
 
         /** Free the underlying MediaPipe session. Safe to call multiple times. */
@@ -62,6 +79,29 @@ class LlmTriageEngine
         fun close() {
             llm?.close()
             llm = null
+        }
+
+        /**
+         * Gemma chat-format wrapping:
+         *   <start_of_turn>user
+         *   {system prompt}
+         *
+         *   ---
+         *
+         *   User's shared post:
+         *   {userInput}<end_of_turn>
+         *   <start_of_turn>model
+         */
+        private fun buildTriagePrompt(userInput: String): String {
+            val system = promptLoader.load(PromptLoader.TRIAGE_SYSTEM)
+            return buildString {
+                append("<start_of_turn>user\n")
+                append(system.trim())
+                append("\n\n---\n\nUser's shared post:\n\n")
+                append(userInput.trim())
+                append("<end_of_turn>\n")
+                append("<start_of_turn>model\n")
+            }
         }
 
         @Synchronized
