@@ -6,6 +6,9 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.patslaurel.resibo.ui.screens.HomeScreen
+import com.patslaurel.resibo.ui.screens.NoteScreen
+import com.patslaurel.resibo.ui.screens.SettingsScreen
+import com.patslaurel.resibo.ui.screens.TraceScreen
 
 @Composable
 fun ResiboNavGraph(
@@ -17,8 +20,20 @@ fun ResiboNavGraph(
         startDestination = startDestination,
     ) {
         composable(ResiboRoutes.HOME) {
-            HomeScreen()
+            HomeScreen(
+                onOpenNote = { navController.navigate(ResiboRoutes.NOTE) },
+                onOpenTrace = { navController.navigate(ResiboRoutes.TRACE) },
+                onOpenSettings = { navController.navigate(ResiboRoutes.SETTINGS) },
+            )
         }
-        // Additional destinations (NoteScreen, TraceScreen, SettingsScreen) land in T025.
+        composable(ResiboRoutes.NOTE) {
+            NoteScreen(onBack = { navController.popBackStack() })
+        }
+        composable(ResiboRoutes.TRACE) {
+            TraceScreen(onBack = { navController.popBackStack() })
+        }
+        composable(ResiboRoutes.SETTINGS) {
+            SettingsScreen(onBack = { navController.popBackStack() })
+        }
     }
 }

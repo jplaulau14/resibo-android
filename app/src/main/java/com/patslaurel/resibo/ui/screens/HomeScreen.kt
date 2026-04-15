@@ -2,8 +2,12 @@ package com.patslaurel.resibo.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -15,14 +19,19 @@ import androidx.compose.ui.unit.dp
 import com.patslaurel.resibo.ui.theme.ResiboTheme
 
 @Composable
-fun HomeScreen(modifier: Modifier = Modifier) {
+fun HomeScreen(
+    onOpenNote: () -> Unit = {},
+    onOpenTrace: () -> Unit = {},
+    onOpenSettings: () -> Unit = {},
+    modifier: Modifier = Modifier,
+) {
     Scaffold(modifier = modifier.fillMaxSize()) { innerPadding ->
         Column(
             modifier =
                 Modifier
                     .fillMaxSize()
                     .padding(innerPadding)
-                    .padding(24.dp),
+                    .padding(horizontal = 24.dp, vertical = 32.dp),
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
@@ -30,10 +39,32 @@ fun HomeScreen(modifier: Modifier = Modifier) {
                 text = "Resibo",
                 style = MaterialTheme.typography.headlineLarge,
             )
+            Spacer(Modifier.height(8.dp))
             Text(
                 text = "On-device fact-check Notes for Filipinos.",
                 style = MaterialTheme.typography.bodyMedium,
             )
+            Spacer(Modifier.height(48.dp))
+            Button(
+                onClick = onOpenNote,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text("Sample Note")
+            }
+            Spacer(Modifier.height(12.dp))
+            Button(
+                onClick = onOpenTrace,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text("Reasoning Trace")
+            }
+            Spacer(Modifier.height(12.dp))
+            Button(
+                onClick = onOpenSettings,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text("Settings")
+            }
         }
     }
 }
