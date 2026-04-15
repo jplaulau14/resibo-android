@@ -58,6 +58,7 @@ class ShareReceiverActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         post = intent?.toSharedPost(contentResolver) ?: SharedPost()
+        maybeAutoGenerate(intent)
 
         setContent {
             ResiboTheme {
@@ -76,6 +77,13 @@ class ShareReceiverActivity : ComponentActivity() {
         setIntent(intent)
         post = intent.toSharedPost(contentResolver)
         generation = GenerationState.Idle
+        maybeAutoGenerate(intent)
+    }
+
+    private fun maybeAutoGenerate(intent: Intent?) {
+        if (intent?.getBooleanExtra(ShareIntents.EXTRA_AUTO_GENERATE, false) != true) return
+        val prompt = post.text?.takeIf { it.isNotBlank() } ?: return
+        runGeneration(prompt)
     }
 
     private fun runGeneration(prompt: String) {

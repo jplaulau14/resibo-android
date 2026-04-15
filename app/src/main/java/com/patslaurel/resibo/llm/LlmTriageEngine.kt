@@ -46,7 +46,7 @@ class LlmTriageEngine
         fun generate(
             userInput: String,
             modelPath: File = defaultModelPath,
-            maxTokens: Int = 512,
+            maxTokens: Int = DEFAULT_CONTEXT_TOKENS,
         ): String {
             val engine = ensureLoaded(modelPath, maxTokens)
             val prompt = buildTriagePrompt(userInput)
@@ -68,7 +68,7 @@ class LlmTriageEngine
         fun generateRaw(
             prompt: String,
             modelPath: File = defaultModelPath,
-            maxTokens: Int = 512,
+            maxTokens: Int = DEFAULT_CONTEXT_TOKENS,
         ): String {
             val engine = ensureLoaded(modelPath, maxTokens)
             return engine.generateResponse(prompt)
@@ -82,26 +82,16 @@ class LlmTriageEngine
         }
 
         /**
-         * Gemma chat-format wrapping:
-         *   <start_of_turn>user
-         *   {system prompt}
+         * Build the prompt MediaPipe's `.task` runtime will feed to Gemma.
          *
-         *   ---
-         *
-         *   User's shared post:
-         *   {userInput}<end_of_turn>
-         *   <start_of_turn>model
+         * Intentionally **no** explicit `<start_of_turn>` / `<end_of_turn>` tokens — Kaggle's
+         * Gemma 3 IT `.task` bundle ships with chat-template metadata and MediaPipe applies
+         * the tokens internally. Double-wrapping confuses the tokenizer and has been
+         * observed to hang / crash inference on small models.
          */
         private fun buildTriagePrompt(userInput: String): String {
             val system = promptLoader.load(PromptLoader.TRIAGE_SYSTEM)
-            return buildString {
-                append("<start_of_turn>user\n")
-                append(system.trim())
-                append("\n\n---\n\nUser's shared post:\n\n")
-                append(userInput.trim())
-                append("<end_of_turn>\n")
-                append("<start_of_turn>model\n")
-            }
+            return "${system.trim()}\n\n---\n\nUser's shared post:\n\n${userInput.trim()}"
         }
 
         @Synchronized
@@ -132,5 +122,14 @@ class LlmTriageEngine
 
             /** Side-load via `adb push <file>.task /sdcard/Android/data/com.patslaurel.resibo/files/$MODEL_FILENAME` */
             const val MODEL_FILENAME = "gemma.task"
+
+            /**
+             * MediaPipe `setMaxTokens` sets the **total** context window (prompt + output).
+             * Gemma 3 1B supports up to 8192, but we don't need anywhere near that and
+             * allocating a larger KV cache costs RAM. 2048 comfortably fits our system
+             * prompt (~600 tokens) + user input + a 300-token Note response, without
+             * blowing memory on SD888.
+             */
+            private const val DEFAULT_CONTEXT_TOKENS = 2048
         }
     }

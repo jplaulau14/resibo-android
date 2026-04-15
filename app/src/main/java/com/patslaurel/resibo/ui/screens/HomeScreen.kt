@@ -8,14 +8,17 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.patslaurel.resibo.share.ShareIntents
 import com.patslaurel.resibo.ui.theme.ResiboTheme
 
 @Composable
@@ -25,6 +28,7 @@ fun HomeScreen(
     onOpenSettings: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
+    val context = LocalContext.current
     Scaffold(modifier = modifier.fillMaxSize()) { innerPadding ->
         Column(
             modifier =
@@ -46,20 +50,27 @@ fun HomeScreen(
             )
             Spacer(Modifier.height(48.dp))
             Button(
+                onClick = { ShareIntents.launchTextTest(context) },
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text("Run test generation (COVID-autism claim)")
+            }
+            Spacer(Modifier.height(12.dp))
+            FilledTonalButton(
                 onClick = onOpenNote,
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Text("Sample Note")
             }
             Spacer(Modifier.height(12.dp))
-            Button(
+            FilledTonalButton(
                 onClick = onOpenTrace,
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Text("Reasoning Trace")
             }
             Spacer(Modifier.height(12.dp))
-            Button(
+            FilledTonalButton(
                 onClick = onOpenSettings,
                 modifier = Modifier.fillMaxWidth(),
             ) {
