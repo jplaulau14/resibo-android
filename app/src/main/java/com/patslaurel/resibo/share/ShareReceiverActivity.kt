@@ -31,6 +31,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.lifecycleScope
+import com.patslaurel.resibo.llm.GenerationState
 import com.patslaurel.resibo.llm.LlmTriageEngine
 import com.patslaurel.resibo.ui.theme.ResiboTheme
 import dagger.hilt.android.AndroidEntryPoint
@@ -105,21 +106,6 @@ class ShareReceiverActivity : ComponentActivity() {
                 )
         }
     }
-}
-
-sealed interface GenerationState {
-    data object Idle : GenerationState
-
-    data object Generating : GenerationState
-
-    data class Result(
-        val text: String,
-        val elapsedMs: Long,
-    ) : GenerationState
-
-    data class Error(
-        val message: String,
-    ) : GenerationState
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

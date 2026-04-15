@@ -5,6 +5,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.patslaurel.resibo.ui.playground.PlaygroundScreen
 import com.patslaurel.resibo.ui.screens.HomeScreen
 import com.patslaurel.resibo.ui.screens.NoteScreen
 import com.patslaurel.resibo.ui.screens.SettingsScreen
@@ -24,6 +25,7 @@ fun ResiboNavGraph(
                 onOpenNote = { navController.navigate(ResiboRoutes.NOTE) },
                 onOpenTrace = { navController.navigate(ResiboRoutes.TRACE) },
                 onOpenSettings = { navController.navigate(ResiboRoutes.SETTINGS) },
+                onOpenPlayground = { navController.navigate(ResiboRoutes.PLAYGROUND) },
             )
         }
         composable(ResiboRoutes.NOTE) {
@@ -34,6 +36,9 @@ fun ResiboNavGraph(
         }
         composable(ResiboRoutes.SETTINGS) {
             SettingsScreen(onBack = { navController.popBackStack() })
+        }
+        composable(ResiboRoutes.PLAYGROUND) {
+            PlaygroundScreen(onBack = { navController.popBackStack() })
         }
     }
 }

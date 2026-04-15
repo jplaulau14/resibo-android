@@ -26,6 +26,7 @@ fun HomeScreen(
     onOpenNote: () -> Unit = {},
     onOpenTrace: () -> Unit = {},
     onOpenSettings: () -> Unit = {},
+    onOpenPlayground: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -50,10 +51,17 @@ fun HomeScreen(
             )
             Spacer(Modifier.height(48.dp))
             Button(
+                onClick = onOpenPlayground,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text("Playground (free-text Gemma)")
+            }
+            Spacer(Modifier.height(12.dp))
+            FilledTonalButton(
                 onClick = { ShareIntents.launchTextTest(context) },
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Text("Run test generation (COVID-autism claim)")
+                Text("Run canned test (COVID-autism claim)")
             }
             Spacer(Modifier.height(12.dp))
             FilledTonalButton(

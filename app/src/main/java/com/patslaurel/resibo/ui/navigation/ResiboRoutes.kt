@@ -11,4 +11,5 @@ object ResiboRoutes {
     const val NOTE = "note"
     const val TRACE = "trace"
     const val SETTINGS = "settings"
+    const val PLAYGROUND = "playground"
 }
