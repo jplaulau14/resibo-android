@@ -241,27 +241,15 @@ private fun SourcesCard(sources: List<FactCheckResult>) {
                                 }
                             },
                 ) {
-                    Column(Modifier.padding(10.dp)) {
-                        Text(
-                            text = source.publisherName,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.primary,
-                        )
-                        Text(
-                            text = source.claimText.take(100) + if (source.claimText.length > 100) "..." else "",
-                            style = MaterialTheme.typography.bodySmall,
-                            maxLines = 2,
-                        )
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                        ) {
                             Text(
-                                text = "Rating: ${source.rating}",
+                                text = source.publisherName,
                                 style = MaterialTheme.typography.labelSmall,
-                                color =
-                                    when (source.rating.lowercase()) {
-                                        "false", "fake" -> MaterialTheme.colorScheme.error
-                                        "true" -> MaterialTheme.colorScheme.primary
-                                        else -> MaterialTheme.colorScheme.outline
-                                    },
+                                color = MaterialTheme.colorScheme.primary,
                             )
                             if (source.reviewDate.isNotBlank()) {
                                 Text(
@@ -271,6 +259,21 @@ private fun SourcesCard(sources: List<FactCheckResult>) {
                                 )
                             }
                         }
+                        Text(
+                            text = source.claimText.take(100) + if (source.claimText.length > 100) "..." else "",
+                            style = MaterialTheme.typography.bodySmall,
+                            maxLines = 2,
+                        )
+                        Text(
+                            text = source.rating,
+                            style = MaterialTheme.typography.labelSmall,
+                            color =
+                                when (source.rating.lowercase()) {
+                                    "false", "fake", "incorrect" -> MaterialTheme.colorScheme.error
+                                    "true", "correct" -> MaterialTheme.colorScheme.primary
+                                    else -> MaterialTheme.colorScheme.outline
+                                },
+                        )
                     }
                 }
             }
