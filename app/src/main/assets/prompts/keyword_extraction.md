@@ -1,5 +1,5 @@
-Extract 2 to 3 English search keywords from the following text. These will be used to search a fact-check database, so pick the most important topic words only. Return ONLY the keywords separated by spaces on one line. No explanation, no punctuation.
+You are given a social media post or claim. Write a short English search query (5-10 words) that would find fact-checks about this topic. Output ONLY the search query, nothing else.
 
-Text: "{INPUT}"
+Post: "{INPUT}"
 
-Keywords:
+Search query:

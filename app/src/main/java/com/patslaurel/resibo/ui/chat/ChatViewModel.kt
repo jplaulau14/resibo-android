@@ -103,15 +103,30 @@ class ChatViewModel
                         }
                     }
 
-                val pplxResult =
+                val searchQuery =
                     try {
-                        withContext(Dispatchers.IO) { perplexity.search(prompt) }
+                        withContext(Dispatchers.Default) {
+                            engine.extractSearchKeywords(prompt)
+                        }
                     } catch (e: Exception) {
-                        Log.e(TAG, "Perplexity search failed: ${e.message}", e)
+                        Log.e(TAG, "Search query extraction failed: ${e.message}", e)
+                        ""
+                    }
+                Log.i(TAG, "Gemma search query: '$searchQuery'")
+
+                val pplxResult =
+                    if (searchQuery.isNotBlank()) {
+                        try {
+                            withContext(Dispatchers.IO) { perplexity.search(searchQuery) }
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Perplexity search failed: ${e.message}", e)
+                            com.patslaurel.resibo.factcheck.PerplexityResult.EMPTY
+                        }
+                    } else {
                         com.patslaurel.resibo.factcheck.PerplexityResult.EMPTY
                     }
                 val evidence = pplxResult.sources
-                Log.i(TAG, "Perplexity: ${evidence.size} sources, ${pplxResult.text.length}-char evidence")
+                Log.i(TAG, "Perplexity: ${pplxResult.text.length}-char evidence")
                 val evidenceContext =
                     if (pplxResult.text.isNotBlank()) {
                         "## Web research results\n\n${pplxResult.text}\n\n---\n\n"
