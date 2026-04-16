@@ -52,6 +52,7 @@ dependencies {
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
+    implementation("androidx.compose.material:material-icons-extended")
 
     // Navigation
     implementation(libs.androidx.navigation.compose)
@@ -61,8 +62,9 @@ dependencies {
     ksp(libs.hilt.compiler)
     implementation(libs.androidx.hilt.navigation.compose)
 
-    // On-device LLM inference (Gemma via Google AI Edge / MediaPipe)
-    implementation(libs.mediapipe.tasks.genai)
+    // On-device LLM inference (Gemma via Google AI Edge)
+    implementation(libs.mediapipe.tasks.genai) // legacy — Gemma 3 .task fallback
+    implementation(libs.litertlm.android) // LiteRT-LM — Gemma 4 .litertlm
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
