@@ -20,6 +20,9 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        val pplxKey = project.findProperty("PERPLEXITY_API_KEY") as? String ?: ""
+        buildConfigField("String", "PERPLEXITY_API_KEY", "\"$pplxKey\"")
     }
 
     buildTypes {
@@ -40,6 +43,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 

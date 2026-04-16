@@ -8,8 +8,8 @@ import androidx.lifecycle.viewModelScope
 import com.patslaurel.resibo.data.NoteRepository
 import com.patslaurel.resibo.data.entity.NoteEntity
 import com.patslaurel.resibo.factcheck.EvidenceInjector
-import com.patslaurel.resibo.factcheck.FactCheckApiClient
 import com.patslaurel.resibo.factcheck.FactCheckResult
+import com.patslaurel.resibo.factcheck.PerplexityClient
 import com.patslaurel.resibo.hash.ImageHasher
 import com.patslaurel.resibo.hash.PerceptualHash
 import com.patslaurel.resibo.llm.LlmTriageEngine
@@ -34,7 +34,7 @@ class ChatViewModel
         @ApplicationContext private val context: Context,
         private val engine: LlmTriageEngine,
         private val noteRepository: NoteRepository,
-        private val factCheckApi: FactCheckApiClient,
+        private val perplexity: PerplexityClient,
     ) : ViewModel() {
         private val _state = MutableStateFlow(ChatUiState())
         val state: StateFlow<ChatUiState> = _state.asStateFlow()
@@ -103,39 +103,21 @@ class ChatViewModel
                         }
                     }
 
-                val keywords =
+                val pplxResult =
                     try {
-                        withContext(Dispatchers.Default) {
-                            engine.extractSearchKeywords(prompt)
-                        }
+                        withContext(Dispatchers.IO) { perplexity.search(prompt) }
                     } catch (e: Exception) {
-                        Log.e(TAG, "Keyword extraction FAILED: ${e.message}", e)
+                        Log.e(TAG, "Perplexity search failed: ${e.message}", e)
+                        com.patslaurel.resibo.factcheck.PerplexityResult.EMPTY
+                    }
+                val evidence = pplxResult.sources
+                Log.i(TAG, "Perplexity: ${evidence.size} sources, ${pplxResult.text.length}-char evidence")
+                val evidenceContext =
+                    if (pplxResult.text.isNotBlank()) {
+                        "## Web research results\n\n${pplxResult.text}\n\n---\n\n"
+                    } else {
                         ""
                     }
-                Log.i(TAG, "Gemma extracted keywords: '$keywords'")
-
-                var evidence: List<FactCheckResult> = emptyList()
-                if (keywords.isNotBlank()) {
-                    val keywordList = keywords.split(Regex("\\s+"))
-                    for (count in listOf(keywordList.size, 3, 2)) {
-                        if (count > keywordList.size) continue
-                        val query = keywordList.take(count).joinToString(" ")
-                        evidence =
-                            runCatching {
-                                withContext(Dispatchers.IO) { factCheckApi.searchRaw(query) }
-                            }.getOrDefault(emptyList())
-                        if (evidence.isNotEmpty()) {
-                            Log.i(TAG, "Found ${evidence.size} results with $count keywords: '$query'")
-                            break
-                        }
-                    }
-                }
-                Log.i(TAG, "Fact-check API returned ${evidence.size} results")
-                evidence.forEachIndexed { idx, r ->
-                    Log.i(TAG, "  source[$idx]: ${r.publisherName} — ${r.rating} — ${r.claimText.take(60)}")
-                }
-                val evidenceContext = EvidenceInjector.buildContext(evidence)
-                Log.i(TAG, "Evidence context: ${evidenceContext.length} chars")
 
                 val result =
                     runCatching {
