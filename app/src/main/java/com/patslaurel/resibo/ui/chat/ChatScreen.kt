@@ -205,6 +205,14 @@ private fun ChatBubble(message: ChatMessage) {
                         )
                     } else {
                         MarkdownText(message.text)
+                        if (message.responseTimeMs > 0) {
+                            Spacer(Modifier.height(6.dp))
+                            Text(
+                                text = formatResponseTime(message.responseTimeMs),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.outline,
+                            )
+                        }
                     }
                 }
             }
@@ -465,3 +473,9 @@ private fun ChatInputBar(
         }
     }
 }
+
+private fun formatResponseTime(ms: Long): String =
+    when {
+        ms < 60_000 -> "Responded in ${ms / 1000}s"
+        else -> "Responded in ${ms / 60_000}m ${(ms % 60_000) / 1000}s"
+    }

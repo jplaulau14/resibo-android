@@ -12,6 +12,7 @@ data class ChatMessage(
     val timestamp: Long = System.currentTimeMillis(),
     val isGenerating: Boolean = false,
     val sources: List<FactCheckResult> = emptyList(),
+    val responseTimeMs: Long = 0,
 ) {
     enum class Role {
         USER,

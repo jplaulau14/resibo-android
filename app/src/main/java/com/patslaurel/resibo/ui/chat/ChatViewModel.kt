@@ -94,6 +94,7 @@ class ChatViewModel
             }
 
             viewModelScope.launch {
+                val totalStart = System.currentTimeMillis()
                 val prompt = userMessage.text
                 val imageTempFile = imageUri?.let { copyToTemp(it) }
                 val imageHash =
@@ -159,15 +160,17 @@ class ChatViewModel
 
                 Log.i(TAG, "Generation result (${responseText.length} chars): ${responseText.take(200)}...")
 
+                val totalTime = System.currentTimeMillis() - totalStart
+
                 _state.update { current ->
                     val updated =
                         current.messages.map { msg ->
                             if (msg.isGenerating) {
-                                Log.i(TAG, "Attaching ${evidence.size} sources to response message")
                                 msg.copy(
                                     text = responseText,
                                     isGenerating = false,
                                     sources = evidence,
+                                    responseTimeMs = totalTime,
                                 )
                             } else {
                                 msg

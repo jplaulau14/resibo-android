@@ -187,19 +187,11 @@ class LlmTriageEngine
                     "adb push <local>.litertlm ${modelPath.absolutePath}"
             }
             val sizeMb = modelPath.length() / 1_048_576
-            Log.i(TAG, "Loading Gemma 4 from ${modelPath.absolutePath} ($sizeMb MB)")
-            val useGpu = sizeMb > 3000
-            val textBackend =
-                if (useGpu) {
-                    Log.i(TAG, "Large model detected — using GPU backend to avoid XNNPACK weight-cache bug")
-                    Backend.GPU()
-                } else {
-                    Backend.CPU()
-                }
+            Log.i(TAG, "Loading Gemma 4 from ${modelPath.absolutePath} ($sizeMb MB), GPU backend")
             val config =
                 EngineConfig(
                     modelPath = modelPath.absolutePath,
-                    backend = textBackend,
+                    backend = Backend.GPU(),
                     visionBackend = Backend.GPU(),
                     audioBackend = Backend.CPU(),
                 )
