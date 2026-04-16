@@ -37,6 +37,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import com.patslaurel.resibo.data.NoteRepository
 import com.patslaurel.resibo.data.entity.NoteEntity
+import com.patslaurel.resibo.ui.components.MarkdownText
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -188,9 +189,8 @@ private fun NoteCard(note: NoteEntity) {
             }
 
             if (expanded) {
-                Text(
-                    text = note.fullResponse,
-                    style = MaterialTheme.typography.bodyMedium,
+                MarkdownText(
+                    markdown = note.fullResponse,
                     modifier = Modifier.padding(top = 8.dp),
                 )
             }

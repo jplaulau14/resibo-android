@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.patslaurel.resibo.llm.GenerationState
+import com.patslaurel.resibo.ui.components.MarkdownText
 import com.patslaurel.resibo.ui.theme.ResiboTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -134,7 +135,7 @@ private fun GenerationResult(state: GenerationState) {
             Card {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("Response (${state.elapsedMs} ms)", style = MaterialTheme.typography.titleSmall)
-                    Text(state.text, style = MaterialTheme.typography.bodyMedium)
+                    MarkdownText(state.text)
                 }
             }
 
