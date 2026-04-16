@@ -5,15 +5,14 @@ import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.patslaurel.resibo.agent.AgentEvent
+import com.patslaurel.resibo.agent.AgentRunner
 import com.patslaurel.resibo.data.NoteRepository
 import com.patslaurel.resibo.data.entity.NoteEntity
 import com.patslaurel.resibo.data.entity.SourceEntity
 import com.patslaurel.resibo.factcheck.FactCheckResult
-import com.patslaurel.resibo.factcheck.PerplexityClient
-import com.patslaurel.resibo.factcheck.PerplexityResult
 import com.patslaurel.resibo.hash.ImageHasher
 import com.patslaurel.resibo.hash.PerceptualHash
-import com.patslaurel.resibo.llm.LlmTriageEngine
 import com.patslaurel.resibo.llm.NoteParser
 import com.patslaurel.resibo.share.PendingShare
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -33,19 +32,14 @@ class CheckViewModel
     @Inject
     constructor(
         @ApplicationContext private val context: Context,
-        private val engine: LlmTriageEngine,
+        private val agentRunner: AgentRunner,
         private val noteRepository: NoteRepository,
-        private val perplexity: PerplexityClient,
     ) : ViewModel() {
         private val _state = MutableStateFlow(CheckUiState())
         val state: StateFlow<CheckUiState> = _state.asStateFlow()
 
         companion object {
             private const val TAG = "CheckViewModel"
-        }
-
-        init {
-            consumePendingShare()
         }
 
         fun onInputChange(value: String) {
@@ -70,146 +64,112 @@ class CheckViewModel
                 return
             }
 
-            val prompt = text.ifEmpty { "Fact-check this image." }
+            val claim = text.ifEmpty { "Fact-check this image." }
 
             _state.update {
                 it.copy(
-                    inputText = "",
-                    attachedImageUri = null,
-                    currentStep = CheckStep.EXTRACTING_QUERY,
-                    searchQuery = "",
-                    sourceCount = 0,
+                    currentStep = CheckStep.THINKING,
                     result = null,
                     errorMessage = null,
+                    toolResults = emptyList(),
                 )
             }
 
-            viewModelScope.launch {
+            viewModelScope.launch(Dispatchers.Default) {
+                val totalStart = System.currentTimeMillis()
+                val imageTempFile = imageUri?.let { copyToTemp(it) }
+                val imageHash =
+                    imageUri?.let {
+                        withContext(Dispatchers.Default) {
+                            ImageHasher.dHashFromUri(context.contentResolver, it)
+                        }
+                    }
+
                 try {
-                    val totalStart = System.currentTimeMillis()
-                    val imageTempFile = imageUri?.let { copyToTemp(it) }
-                    val imageHash =
-                        imageUri?.let {
-                            withContext(Dispatchers.Default) {
-                                ImageHasher.dHashFromUri(context.contentResolver, it)
+                    var evidence = emptyList<FactCheckResult>()
+
+                    agentRunner.run(claim, imageTempFile?.absolutePath).collect { event ->
+                        when (event) {
+                            is AgentEvent.ToolRequested -> {
+                                _state.update {
+                                    it.copy(
+                                        currentStep = CheckStep.TOOL_CALLING,
+                                        activeToolName = event.toolName,
+                                        activeToolInput = event.input,
+                                    )
+                                }
+                            }
+
+                            is AgentEvent.ToolCompleted -> {
+                                _state.update {
+                                    it.copy(activeToolName = "", activeToolInput = "")
+                                }
+                            }
+
+                            is AgentEvent.TokenGenerated -> {
+                                _state.update {
+                                    it.copy(
+                                        currentStep = CheckStep.GENERATING_NOTE,
+                                        result =
+                                            CheckResult(
+                                                claim = claim,
+                                                analysis = event.fullText,
+                                                sources = evidence,
+                                                responseTimeMs = System.currentTimeMillis() - totalStart,
+                                                imageUri = imageUri,
+                                                toolsUsed = it.toolResults,
+                                            ),
+                                    )
+                                }
+                            }
+
+                            is AgentEvent.Done -> {
+                                evidence = event.perplexityResult.sources
+                                val totalTime = System.currentTimeMillis() - totalStart
+                                _state.update {
+                                    it.copy(
+                                        currentStep = CheckStep.DONE,
+                                        toolResults = event.toolResults,
+                                        result =
+                                            CheckResult(
+                                                claim = claim,
+                                                analysis = event.finalNote,
+                                                sources = evidence,
+                                                responseTimeMs = totalTime,
+                                                imageUri = imageUri,
+                                                toolsUsed = event.toolResults,
+                                            ),
+                                    )
+                                }
+                                saveNote(claim, event.finalNote, imageHash, evidence)
+                            }
+
+                            is AgentEvent.Error -> {
+                                _state.update {
+                                    it.copy(
+                                        currentStep = CheckStep.ERROR,
+                                        errorMessage = event.message,
+                                    )
+                                }
                             }
                         }
-
-                    val searchQuery =
-                        try {
-                            withContext(Dispatchers.Default) {
-                                engine.extractSearchKeywords(prompt)
-                            }
-                        } catch (e: Exception) {
-                            Log.e(TAG, "Search query extraction failed: ${e.message}", e)
-                            ""
-                        }
-                    Log.i(TAG, "Gemma search query: '$searchQuery'")
-
-                    _state.update {
-                        it.copy(
-                            currentStep = CheckStep.SEARCHING_WEB,
-                            searchQuery = searchQuery,
-                        )
                     }
-
-                    val pplxResult =
-                        if (searchQuery.isNotBlank()) {
-                            try {
-                                withContext(Dispatchers.IO) { perplexity.search(searchQuery) }
-                            } catch (e: Exception) {
-                                Log.e(TAG, "Perplexity search failed: ${e.message}", e)
-                                PerplexityResult.EMPTY
-                            }
-                        } else {
-                            PerplexityResult.EMPTY
-                        }
-                    val evidence = pplxResult.sources
-                    Log.i(TAG, "Perplexity: ${pplxResult.text.length}-char evidence")
-                    val evidenceContext =
-                        if (pplxResult.text.isNotBlank()) {
-                            "## Web research results\n\n${pplxResult.text}\n\n---\n\n"
-                        } else {
-                            ""
-                        }
-
-                    _state.update {
-                        it.copy(
-                            currentStep = CheckStep.GENERATING_NOTE,
-                            sourceCount = evidence.size,
-                            result =
-                                CheckResult(
-                                    claim = prompt,
-                                    analysis = "",
-                                    sources = evidence,
-                                    responseTimeMs = 0,
-                                    imageUri = imageUri,
-                                ),
-                        )
-                    }
-
-                    val tokenFlow =
-                        if (imageTempFile != null) {
-                            try {
-                                engine.generateWithImageStreaming(prompt, imageTempFile.absolutePath, evidenceContext)
-                            } catch (_: Exception) {
-                                engine.generateStreaming(prompt, evidenceContext)
-                            }
-                        } else {
-                            engine.generateStreaming(prompt, evidenceContext)
-                        }
-
-                    var responseText = ""
-                    tokenFlow.collect { token ->
-                        responseText += token
-                        _state.update {
-                            it.copy(
-                                result =
-                                    it.result?.copy(
-                                        analysis = responseText,
-                                        responseTimeMs = System.currentTimeMillis() - totalStart,
-                                    ),
-                            )
-                        }
-                    }
-
-                    imageTempFile?.delete()
-
-                    Log.i(TAG, "Generation result (${responseText.length} chars): ${responseText.take(200)}...")
-
-                    val totalTime = System.currentTimeMillis() - totalStart
-
-                    _state.update {
-                        it.copy(
-                            currentStep = CheckStep.DONE,
-                            result =
-                                CheckResult(
-                                    claim = prompt,
-                                    analysis = responseText,
-                                    sources = evidence,
-                                    responseTimeMs = totalTime,
-                                    imageUri = imageUri,
-                                ),
-                        )
-                    }
-
-                    saveNote(prompt, responseText, imageHash, evidence)
                 } catch (e: Exception) {
-                    Log.e(TAG, "Check failed: ${e.message}", e)
+                    Log.e(TAG, "Agent failed: ${e.message}", e)
                     _state.update {
                         it.copy(
                             currentStep = CheckStep.ERROR,
                             errorMessage = e.message ?: e.javaClass.simpleName,
                         )
                     }
+                } finally {
+                    imageTempFile?.delete()
                 }
             }
         }
 
         fun reset() {
-            _state.update {
-                CheckUiState()
-            }
+            _state.update { CheckUiState() }
         }
 
         fun checkPendingShare() {

@@ -54,6 +54,24 @@ fun NoteCard(
 
             MarkdownText(markdown = checkResult.analysis)
 
+            if (checkResult.toolsUsed.isNotEmpty()) {
+                HorizontalDivider()
+                Text(
+                    text = "Reasoning",
+                    style = MaterialTheme.typography.labelLarge,
+                )
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    checkResult.toolsUsed.forEach { tool ->
+                        Text(
+                            text = "${tool.toolName}(\"${tool.input.take(50)}\")",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.outline,
+                            fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                        )
+                    }
+                }
+            }
+
             if (checkResult.sources.isNotEmpty()) {
                 HorizontalDivider()
 

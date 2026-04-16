@@ -82,13 +82,13 @@ class LlmTriageEngine
             val eng = ensureLoaded(modelPath)
             val prompt = buildTriagePrompt(userInput, evidenceContext)
             val conversation = eng.createConversation()
-            return conversation.sendMessageAsync(prompt)
+            return conversation
+                .sendMessageAsync(prompt)
                 .map { message ->
                     message.contents.contents
                         .filterIsInstance<Content.Text>()
                         .joinToString("") { it.text }
-                }
-                .onCompletion { conversation.close() }
+                }.onCompletion { conversation.close() }
         }
 
         /**
@@ -113,13 +113,13 @@ class LlmTriageEngine
                 )
 
             val conversation = eng.createConversation()
-            return conversation.sendMessageAsync(contents)
+            return conversation
+                .sendMessageAsync(contents)
                 .map { message ->
                     message.contents.contents
                         .filterIsInstance<Content.Text>()
                         .joinToString("") { it.text }
-                }
-                .onCompletion { conversation.close() }
+                }.onCompletion { conversation.close() }
         }
 
         /**

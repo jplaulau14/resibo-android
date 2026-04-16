@@ -22,10 +22,16 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         val localPropsFile = rootProject.file("local.properties")
-        val pplxKey = if (localPropsFile.exists()) {
-            localPropsFile.readLines().firstOrNull { it.startsWith("PERPLEXITY_API_KEY=") }
-                ?.substringAfter("=")?.trim() ?: ""
-        } else ""
+        val pplxKey =
+            if (localPropsFile.exists()) {
+                localPropsFile
+                    .readLines()
+                    .firstOrNull { it.startsWith("PERPLEXITY_API_KEY=") }
+                    ?.substringAfter("=")
+                    ?.trim() ?: ""
+            } else {
+                ""
+            }
         buildConfigField("String", "PERPLEXITY_API_KEY", "\"$pplxKey\"")
     }
 

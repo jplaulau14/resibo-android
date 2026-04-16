@@ -166,7 +166,7 @@ private enum class ScreenState { IDLE, LOADING, RESULT, ERROR }
 private fun deriveScreenState(state: CheckUiState): ScreenState =
     when (state.currentStep) {
         CheckStep.IDLE -> if (state.result != null) ScreenState.RESULT else ScreenState.IDLE
-        CheckStep.EXTRACTING_QUERY, CheckStep.SEARCHING_WEB -> ScreenState.LOADING
+        CheckStep.THINKING, CheckStep.TOOL_CALLING -> ScreenState.LOADING
         CheckStep.GENERATING_NOTE -> if (state.result?.analysis.isNullOrEmpty()) ScreenState.LOADING else ScreenState.RESULT
         CheckStep.DONE -> ScreenState.RESULT
         CheckStep.ERROR -> ScreenState.ERROR
@@ -372,9 +372,20 @@ private fun LoadingContent(state: CheckUiState) {
 
     val steps =
         listOf(
-            CheckStep.EXTRACTING_QUERY to "Extracting search query",
-            CheckStep.SEARCHING_WEB to "Searching web sources",
-            CheckStep.GENERATING_NOTE to "Generating fact-check Note",
+            CheckStep.THINKING to "Analyzing claim",
+            CheckStep.TOOL_CALLING to
+                if (state.activeToolName.isNotBlank()) {
+                    "Calling ${state.activeToolName}${if (state.activeToolInput.isNotBlank()) {
+                        ": ${state.activeToolInput.take(
+                            40,
+                        )}"
+                    } else {
+                        ""
+                    }}"
+                } else {
+                    "Using tools"
+                },
+            CheckStep.GENERATING_NOTE to "Writing fact-check Note",
         )
 
     val infiniteTransition = rememberInfiniteTransition(label = "pulse")

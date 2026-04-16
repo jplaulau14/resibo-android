@@ -53,5 +53,6 @@ class PromptLoader
 
             const val TRIAGE_SYSTEM = "triage_system.md"
             const val KEYWORD_EXTRACTION = "keyword_extraction.md"
+            const val AGENT_SYSTEM = "agent_system.md"
         }
     }
