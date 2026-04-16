@@ -79,25 +79,8 @@ class PerplexityClient
                 }
             }
 
-            val searchResults = root.optJSONArray("search_results")
             val sources = mutableListOf<FactCheckResult>()
-            if (searchResults != null) {
-                for (i in 0 until searchResults.length()) {
-                    val sr = searchResults.getJSONObject(i)
-                    sources.add(
-                        FactCheckResult(
-                            claimText = sr.optString("snippet", "").take(200),
-                            claimant = "",
-                            rating = "",
-                            reviewUrl = sr.optString("url", ""),
-                            reviewTitle = sr.optString("title", ""),
-                            publisherName = extractDomain(sr.optString("url", "")),
-                            publisherSite = sr.optString("url", ""),
-                            reviewDate = sr.optString("date", sr.optString("last_updated", "")),
-                        ),
-                    )
-                }
-            } else if (citations.isNotEmpty()) {
+            if (citations.isNotEmpty()) {
                 citations.forEach { url ->
                     sources.add(
                         FactCheckResult(
@@ -105,7 +88,7 @@ class PerplexityClient
                             claimant = "",
                             rating = "",
                             reviewUrl = url,
-                            reviewTitle = "",
+                            reviewTitle = extractDomain(url),
                             publisherName = extractDomain(url),
                             publisherSite = url,
                             reviewDate = "",
@@ -115,6 +98,10 @@ class PerplexityClient
             }
 
             Log.i(TAG, "Got ${sources.size} sources, ${text.length}-char evidence text")
+            Log.i(TAG, "Evidence: ${text.take(300)}...")
+            sources.forEachIndexed { i, s ->
+                Log.i(TAG, "  [$i] ${s.publisherName} | ${s.reviewTitle.take(60)} | ${s.reviewUrl.take(60)}")
+            }
             return PerplexityResult(text = text, sources = sources)
         }
 
