@@ -211,71 +211,32 @@ private fun SourcesCard(sources: List<FactCheckResult>) {
 
     Surface(
         shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.tertiaryContainer,
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
         modifier = Modifier.widthIn(max = 320.dp),
     ) {
-        Column(
-            Modifier.padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
+        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(
-                text = "Sources (${sources.size})",
+                text = "Sources",
                 style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onTertiaryContainer,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             sources.forEach { source ->
-                Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = MaterialTheme.colorScheme.surface,
+                Text(
+                    text = source.publisherName,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary,
                     modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .clickable {
-                                runCatching {
-                                    val intent =
-                                        AndroidIntent(
-                                            AndroidIntent.ACTION_VIEW,
-                                            android.net.Uri.parse(source.reviewUrl),
-                                        )
-                                    context.startActivity(intent)
-                                }
-                            },
-                ) {
-                    Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                        ) {
-                            Text(
-                                text = source.publisherName,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.primary,
-                            )
-                            if (source.reviewDate.isNotBlank()) {
-                                Text(
-                                    text = source.reviewDate.take(10),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.outline,
+                        Modifier.clickable {
+                            runCatching {
+                                context.startActivity(
+                                    AndroidIntent(
+                                        AndroidIntent.ACTION_VIEW,
+                                        android.net.Uri.parse(source.reviewUrl),
+                                    ),
                                 )
                             }
-                        }
-                        Text(
-                            text = source.claimText.take(100) + if (source.claimText.length > 100) "..." else "",
-                            style = MaterialTheme.typography.bodySmall,
-                            maxLines = 2,
-                        )
-                        Text(
-                            text = source.rating,
-                            style = MaterialTheme.typography.labelSmall,
-                            color =
-                                when (source.rating.lowercase()) {
-                                    "false", "fake", "incorrect" -> MaterialTheme.colorScheme.error
-                                    "true", "correct" -> MaterialTheme.colorScheme.primary
-                                    else -> MaterialTheme.colorScheme.outline
-                                },
-                        )
-                    }
-                }
+                        },
+                )
             }
         }
     }
