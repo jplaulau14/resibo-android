@@ -126,6 +126,35 @@ class LlmTriageEngine
                 .joinToString("") { it.text }
         }
 
+        /**
+         * Ask the model to extract English search keywords from any-language input.
+         * Returns a short string of keywords for the Fact Check API.
+         * Fast — tiny output budget, reuses already-loaded engine.
+         */
+        fun extractSearchKeywords(
+            userInput: String,
+            modelPath: File = defaultModelPath,
+        ): String {
+            val eng = ensureLoaded(modelPath)
+            val template = promptLoader.load(PromptLoader.KEYWORD_EXTRACTION)
+            val prompt = template.replace("{INPUT}", userInput.trim().take(500))
+            Log.i(TAG, "extractSearchKeywords: sending ${prompt.length}-char prompt")
+            val started = System.currentTimeMillis()
+            val message =
+                eng.createConversation().use { conversation ->
+                    conversation.sendMessage(prompt)
+                }
+            val rawResult =
+                message.contents.contents
+                    .filterIsInstance<Content.Text>()
+                    .joinToString("") { it.text }
+                    .trim()
+            val result = rawResult.lines().firstOrNull()?.trim() ?: rawResult.take(100).trim()
+            val elapsed = System.currentTimeMillis() - started
+            Log.i(TAG, "extractSearchKeywords took ${elapsed}ms → '$result' (raw: '${rawResult.take(80)}')")
+            return result
+        }
+
         /** Free the underlying LiteRT-LM engine. Safe to call multiple times. */
         @Synchronized
         fun close() {

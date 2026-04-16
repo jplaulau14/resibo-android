@@ -52,5 +52,6 @@ class PromptLoader
             private const val PROMPTS_DIR = "prompts"
 
             const val TRIAGE_SYSTEM = "triage_system.md"
+            const val KEYWORD_EXTRACTION = "keyword_extraction.md"
         }
     }

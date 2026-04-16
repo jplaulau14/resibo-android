@@ -1,8 +1,8 @@
 package com.patslaurel.resibo.ui.chat
 
 import android.content.Context
-import android.graphics.BitmapFactory
 import android.net.Uri
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.patslaurel.resibo.data.NoteRepository
@@ -42,6 +42,10 @@ class ChatViewModel
         /** Most recent fact-check evidence — exposed for the sources UI. */
         var lastEvidence: List<FactCheckResult> = emptyList()
             private set
+
+        companion object {
+            private const val TAG = "ChatViewModel"
+        }
 
         init {
             addWelcomeMessage()
@@ -99,14 +103,42 @@ class ChatViewModel
                         }
                     }
 
-                // Query fact-check API in parallel with model preparation
-                val evidenceDeferred =
-                    async(Dispatchers.IO) {
-                        runCatching { factCheckApi.search(prompt) }.getOrDefault(emptyList())
+                // Pass 1: Let Gemma extract English search keywords from any-language input
+                val keywords =
+                    try {
+                        withContext(Dispatchers.Default) {
+                            engine.extractSearchKeywords(prompt)
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Keyword extraction FAILED: ${e.message}", e)
+                        ""
                     }
+                Log.i(TAG, "Gemma extracted keywords: '$keywords'")
 
-                val evidence = evidenceDeferred.await()
+                // Search fact-check API with Gemma's keywords (cascade: full → fewer)
+                var evidence: List<FactCheckResult> = emptyList()
+                if (keywords.isNotBlank()) {
+                    val keywordList = keywords.split(Regex("\\s+"))
+                    // Try progressively fewer keywords until we get results
+                    for (count in listOf(keywordList.size, 3, 2)) {
+                        if (count > keywordList.size) continue
+                        val query = keywordList.take(count).joinToString(" ")
+                        evidence =
+                            runCatching {
+                                withContext(Dispatchers.IO) { factCheckApi.searchRaw(query) }
+                            }.getOrDefault(emptyList())
+                        if (evidence.isNotEmpty()) {
+                            Log.i(TAG, "Found ${evidence.size} results with $count keywords: '$query'")
+                            break
+                        }
+                    }
+                }
+                Log.i(TAG, "Fact-check API returned ${evidence.size} results")
+                evidence.forEachIndexed { idx, r ->
+                    Log.i(TAG, "  source[$idx]: ${r.publisherName} — ${r.rating} — ${r.claimText.take(60)}")
+                }
                 val evidenceContext = EvidenceInjector.buildContext(evidence)
+                Log.i(TAG, "Evidence context: ${evidenceContext.length} chars")
 
                 val result =
                     runCatching {
@@ -131,10 +163,13 @@ class ChatViewModel
                         "Something went wrong: ${t.message ?: t.javaClass.simpleName}"
                     }
 
+                Log.i(TAG, "Generation result (${responseText.length} chars): ${responseText.take(200)}...")
+
                 _state.update { current ->
                     val updated =
                         current.messages.map { msg ->
                             if (msg.isGenerating) {
+                                Log.i(TAG, "Attaching ${evidence.size} sources to response message")
                                 msg.copy(
                                     text = responseText,
                                     isGenerating = false,

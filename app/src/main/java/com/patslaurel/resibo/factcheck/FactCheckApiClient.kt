@@ -26,14 +26,26 @@ class FactCheckApiClient
          * structured results. Returns empty list on network error or no matches.
          * Must be called off the main thread.
          */
+        /**
+         * Search with raw keywords (already extracted by Gemma).
+         * No keyword extraction — pass directly to the API.
+         */
+        fun searchRaw(
+            keywords: String,
+            maxResults: Int = 5,
+        ): List<FactCheckResult> {
+            if (keywords.isBlank()) return emptyList()
+            Log.i(TAG, "Searching raw: '$keywords'")
+            val encoded = URLEncoder.encode(keywords.take(200), "UTF-8")
+            return executeSearch(encoded, maxResults)
+        }
+
         fun search(
             query: String,
             maxResults: Int = 5,
         ): List<FactCheckResult> {
             if (query.isBlank()) return emptyList()
 
-            // Extract English-friendly keywords — the API is keyword-based,
-            // not semantic. Full Tagalog sentences return 0 results.
             val keywords = extractKeywords(query)
             if (keywords.isBlank()) return emptyList()
 
@@ -42,6 +54,14 @@ class FactCheckApiClient
             val url =
                 "$BASE_URL?query=$encoded&pageSize=$maxResults&key=$API_KEY"
 
+            return executeSearch(encoded, maxResults)
+        }
+
+        private fun executeSearch(
+            encodedQuery: String,
+            maxResults: Int,
+        ): List<FactCheckResult> {
+            val url = "$BASE_URL?query=$encodedQuery&pageSize=$maxResults&key=$API_KEY"
             return try {
                 val conn = URL(url).openConnection() as HttpURLConnection
                 conn.requestMethod = "GET"
@@ -55,7 +75,9 @@ class FactCheckApiClient
 
                 val body = conn.inputStream.bufferedReader().use { it.readText() }
                 conn.disconnect()
-                parseResponse(body)
+                val results = parseResponse(body)
+                Log.i(TAG, "API returned ${results.size} fact-check results")
+                results
             } catch (e: Exception) {
                 Log.w(TAG, "Fact Check API error: ${e.message}")
                 emptyList()
@@ -173,14 +195,11 @@ class FactCheckApiClient
                     .replace(Regex("[^\\w\\s]"), " ")
                     .split(Regex("\\s+"))
                     .filter { word ->
-                        word.length > 2 &&
-                            word.lowercase() !in tagalogStopWords &&
-                            (
-                                word[0].isUpperCase() ||
-                                    word.any { it.isDigit() } ||
-                                    word.length > 5
-                            )
-                    }.take(8)
+                        word.length > 2 && word.lowercase() !in tagalogStopWords
+                    }.map { it.lowercase() }
+                    .distinct()
+                    .sortedByDescending { it.length }
+                    .take(6)
 
             return words.joinToString(" ")
         }
