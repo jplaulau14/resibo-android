@@ -151,8 +151,27 @@ private fun NoteCard(note: NoteEntity) {
             Row(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
+                if (note.domain != "unknown") {
+                    Text(
+                        text = note.domain,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.tertiary,
+                    )
+                }
+                if (note.checkWorthiness != "unknown") {
+                    Text(
+                        text = note.checkWorthiness,
+                        style = MaterialTheme.typography.labelSmall,
+                        color =
+                            when (note.checkWorthiness) {
+                                "high" -> MaterialTheme.colorScheme.error
+                                "medium" -> MaterialTheme.colorScheme.tertiary
+                                else -> MaterialTheme.colorScheme.outline
+                            },
+                    )
+                }
                 Text(
-                    text = note.modelVariant,
+                    text = note.language,
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.primary,
                 )

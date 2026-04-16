@@ -35,6 +35,7 @@ import com.patslaurel.resibo.data.NoteRepository
 import com.patslaurel.resibo.data.entity.NoteEntity
 import com.patslaurel.resibo.llm.GenerationState
 import com.patslaurel.resibo.llm.LlmTriageEngine
+import com.patslaurel.resibo.llm.NoteParser
 import com.patslaurel.resibo.ui.theme.ResiboTheme
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
@@ -121,14 +122,15 @@ class ShareReceiverActivity : ComponentActivity() {
         result: GenerationState.Result,
     ) {
         runCatching {
+            val parsed = NoteParser.parse(result.text)
             noteRepository.saveNote(
                 NoteEntity(
-                    claim = prompt.take(500),
-                    language = "auto",
-                    checkWorthiness = "unknown",
-                    domain = "unknown",
-                    offlineAssessment = "",
-                    verificationNeeded = "",
+                    claim = parsed.claim.ifEmpty { prompt.take(500) },
+                    language = parsed.language,
+                    checkWorthiness = parsed.checkWorthiness,
+                    domain = parsed.domain,
+                    offlineAssessment = parsed.offlineAssessment,
+                    verificationNeeded = parsed.verificationNeeded,
                     fullResponse = result.text,
                     modelVariant = "gemma-4-e2b-it",
                     promptChars = prompt.length,
