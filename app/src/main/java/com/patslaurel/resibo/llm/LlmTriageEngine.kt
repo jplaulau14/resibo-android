@@ -84,8 +84,8 @@ class LlmTriageEngine
 
             val contents =
                 Contents.of(
-                    Content.Text(textPrompt),
                     Content.ImageFile(imagePath),
+                    Content.Text(textPrompt),
                 )
 
             val started = System.currentTimeMillis()
@@ -144,14 +144,21 @@ class LlmTriageEngine
             }
             val sizeMb = modelPath.length() / 1_048_576
             Log.i(TAG, "Loading Gemma 4 from ${modelPath.absolutePath} ($sizeMb MB)")
-            val backend =
-                if (sizeMb > 3000) {
+            val useGpu = sizeMb > 3000
+            val textBackend =
+                if (useGpu) {
                     Log.i(TAG, "Large model detected — using GPU backend to avoid XNNPACK weight-cache bug")
                     Backend.GPU()
                 } else {
                     Backend.CPU()
                 }
-            val config = EngineConfig(modelPath = modelPath.absolutePath, backend = backend)
+            val config =
+                EngineConfig(
+                    modelPath = modelPath.absolutePath,
+                    backend = textBackend,
+                    visionBackend = Backend.GPU(),
+                    audioBackend = Backend.CPU(),
+                )
             val eng = Engine(config)
             eng.initialize()
             Log.i(TAG, "Gemma 4 loaded.")

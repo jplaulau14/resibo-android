@@ -141,7 +141,16 @@ class ShareReceiverActivity : ComponentActivity() {
                 runCatching {
                     withContext(Dispatchers.Default) {
                         if (imageTempFile != null) {
-                            llmEngine.generateWithImage(prompt, imageTempFile.absolutePath)
+                            try {
+                                llmEngine.generateWithImage(prompt, imageTempFile.absolutePath)
+                            } catch (e: Exception) {
+                                android.util.Log.w(
+                                    "ShareReceiver",
+                                    "Image inference failed, falling back to text-only",
+                                    e,
+                                )
+                                llmEngine.generate(prompt)
+                            }
                         } else {
                             llmEngine.generate(prompt)
                         }
