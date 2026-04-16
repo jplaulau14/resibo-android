@@ -182,6 +182,10 @@ class ChatViewModel
             }
         }
 
+        fun checkPendingShare() {
+            consumePendingShare()
+        }
+
         fun clearChat() {
             _state.update { ChatUiState() }
             addWelcomeMessage()

@@ -19,12 +19,26 @@ class ShareReceiverActivity : ComponentActivity() {
 
         val post = intent?.toSharedPost(contentResolver) ?: SharedPost()
 
+        val imageUri = post.imageUris.firstOrNull()
+        if (imageUri != null) {
+            runCatching {
+                contentResolver.takePersistableUriPermission(
+                    imageUri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION,
+                )
+            }
+        }
+
         PendingShare.text = post.text
-        PendingShare.imageUri = post.imageUris.firstOrNull()
+        PendingShare.imageUri = imageUri
 
         val mainIntent =
             Intent(this, MainActivity::class.java).apply {
                 addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                imageUri?.let {
+                    data = it
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
             }
         startActivity(mainIntent)
         finish()
