@@ -2,6 +2,7 @@ package com.patslaurel.resibo.llm
 
 import android.content.Context
 import android.util.Log
+import com.google.ai.edge.litertlm.Backend
 import com.google.ai.edge.litertlm.Content
 import com.google.ai.edge.litertlm.Contents
 import com.google.ai.edge.litertlm.Engine
@@ -141,8 +142,16 @@ class LlmTriageEngine
                 "Model not found at ${modelPath.absolutePath}. Push the .litertlm file via: " +
                     "adb push <local>.litertlm ${modelPath.absolutePath}"
             }
-            Log.i(TAG, "Loading Gemma 4 from ${modelPath.absolutePath} (${modelPath.length() / 1_048_576} MB)")
-            val config = EngineConfig(modelPath = modelPath.absolutePath)
+            val sizeMb = modelPath.length() / 1_048_576
+            Log.i(TAG, "Loading Gemma 4 from ${modelPath.absolutePath} ($sizeMb MB)")
+            val backend =
+                if (sizeMb > 3000) {
+                    Log.i(TAG, "Large model detected — using GPU backend to avoid XNNPACK weight-cache bug")
+                    Backend.GPU()
+                } else {
+                    Backend.CPU()
+                }
+            val config = EngineConfig(modelPath = modelPath.absolutePath, backend = backend)
             val eng = Engine(config)
             eng.initialize()
             Log.i(TAG, "Gemma 4 loaded.")
