@@ -3,6 +3,7 @@ package com.patslaurel.resibo.llm
 import android.content.Context
 import android.util.Log
 import com.google.ai.edge.litertlm.Content
+import com.google.ai.edge.litertlm.Contents
 import com.google.ai.edge.litertlm.Engine
 import com.google.ai.edge.litertlm.EngineConfig
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -61,6 +62,45 @@ class LlmTriageEngine
             Log.i(
                 TAG,
                 "generate(promptChars=${prompt.length}, outputChars=${result.length}) took ${elapsed}ms",
+            )
+            return result
+        }
+
+        /**
+         * Run the model on [userInput] + an image file. The model sees both the text prompt
+         * (wrapped with the triage system prompt) and the image. Requires a multimodal model
+         * (Gemma 4 E4B) — will likely produce garbage or crash on text-only models (E2B).
+         */
+        fun generateWithImage(
+            userInput: String,
+            imagePath: String,
+            modelPath: File = defaultModelPath,
+        ): String {
+            val eng = ensureLoaded(modelPath)
+            val system = promptLoader.load(PromptLoader.TRIAGE_SYSTEM)
+            val textPrompt =
+                "${system.trim()}\n\n---\n\nUser's shared post (with image attached):\n\n${userInput.trim()}"
+
+            val contents =
+                Contents.of(
+                    Content.Text(textPrompt),
+                    Content.ImageFile(imagePath),
+                )
+
+            val started = System.currentTimeMillis()
+            val message =
+                eng.createConversation().use { conversation ->
+                    conversation.sendMessage(contents)
+                }
+            val result =
+                message.contents.contents
+                    .filterIsInstance<Content.Text>()
+                    .joinToString("") { it.text }
+            val elapsed = System.currentTimeMillis() - started
+            Log.i(
+                TAG,
+                "generateWithImage(promptChars=${textPrompt.length}, imagePath=$imagePath, " +
+                    "outputChars=${result.length}) took ${elapsed}ms",
             )
             return result
         }

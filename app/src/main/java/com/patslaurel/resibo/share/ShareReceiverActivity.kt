@@ -135,14 +135,20 @@ class ShareReceiverActivity : ComponentActivity() {
         if (generation is GenerationState.Generating) return
         generation = GenerationState.Generating
         lifecycleScope.launch {
+            val imageTempFile = copyFirstImageToTemp()
             val started = System.currentTimeMillis()
             val outcome =
                 runCatching {
                     withContext(Dispatchers.Default) {
-                        llmEngine.generate(prompt)
+                        if (imageTempFile != null) {
+                            llmEngine.generateWithImage(prompt, imageTempFile.absolutePath)
+                        } else {
+                            llmEngine.generate(prompt)
+                        }
                     }
                 }
             val elapsed = System.currentTimeMillis() - started
+            imageTempFile?.delete()
             val newState =
                 outcome.fold(
                     onSuccess = { text -> GenerationState.Result(text, elapsed) },
@@ -153,6 +159,26 @@ class ShareReceiverActivity : ComponentActivity() {
             if (newState is GenerationState.Result) {
                 saveNote(prompt, newState, imageHash)
             }
+        }
+    }
+
+    /**
+     * Copy the first shared image URI to a temp file so LiteRT-LM can access it via
+     * absolute path. Share-intent URIs are content:// and not directly file-readable
+     * by native code. Returns null if no images or copy fails.
+     */
+    private suspend fun copyFirstImageToTemp(): java.io.File? {
+        val uri = post.imageUris.firstOrNull() ?: return null
+        return withContext(Dispatchers.IO) {
+            runCatching {
+                val tempFile = java.io.File.createTempFile("resibo_share_", ".jpg", cacheDir)
+                contentResolver.openInputStream(uri)?.use { input ->
+                    tempFile.outputStream().use { output ->
+                        input.copyTo(output)
+                    }
+                }
+                tempFile
+            }.getOrNull()
         }
     }
 
@@ -231,9 +257,14 @@ private fun ShareReceiverScreen(
                 is GenerationState.CacheHit -> CacheHitCard(generation as GenerationState.CacheHit)
 
                 else -> {
-                    if (!post.text.isNullOrBlank() && post.kind != SharedPost.Kind.URL_ONLY) {
+                    val hasContent =
+                        !post.text.isNullOrBlank() || post.imageUris.isNotEmpty()
+                    if (hasContent && post.kind != SharedPost.Kind.URL_ONLY && post.kind != SharedPost.Kind.EMPTY) {
+                        val prompt =
+                            post.text?.takeIf { it.isNotBlank() }
+                                ?: "Describe and fact-check the content in this image."
                         GenerationPanel(
-                            prompt = post.text,
+                            prompt = prompt,
                             state = generation,
                             onGenerate = onGenerate,
                         )
