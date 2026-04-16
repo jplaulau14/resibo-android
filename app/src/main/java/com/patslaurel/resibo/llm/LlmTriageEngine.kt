@@ -155,7 +155,10 @@ class LlmTriageEngine
             return result
         }
 
-        /** Free the underlying LiteRT-LM engine. Safe to call multiple times. */
+        fun warmUp(modelPath: File = defaultModelPath) {
+            ensureLoaded(modelPath)
+        }
+
         @Synchronized
         fun close() {
             engine?.close()
