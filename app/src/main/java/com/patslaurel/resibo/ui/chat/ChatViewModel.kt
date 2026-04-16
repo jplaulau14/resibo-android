@@ -7,6 +7,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.patslaurel.resibo.data.NoteRepository
 import com.patslaurel.resibo.data.entity.NoteEntity
+import com.patslaurel.resibo.factcheck.EvidenceInjector
+import com.patslaurel.resibo.factcheck.FactCheckApiClient
+import com.patslaurel.resibo.factcheck.FactCheckResult
 import com.patslaurel.resibo.hash.ImageHasher
 import com.patslaurel.resibo.hash.PerceptualHash
 import com.patslaurel.resibo.llm.LlmTriageEngine
@@ -14,6 +17,7 @@ import com.patslaurel.resibo.llm.NoteParser
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -30,9 +34,14 @@ class ChatViewModel
         @ApplicationContext private val context: Context,
         private val engine: LlmTriageEngine,
         private val noteRepository: NoteRepository,
+        private val factCheckApi: FactCheckApiClient,
     ) : ViewModel() {
         private val _state = MutableStateFlow(ChatUiState())
         val state: StateFlow<ChatUiState> = _state.asStateFlow()
+
+        /** Most recent fact-check evidence — exposed for the sources UI. */
+        var lastEvidence: List<FactCheckResult> = emptyList()
+            private set
 
         init {
             addWelcomeMessage()
@@ -90,22 +99,32 @@ class ChatViewModel
                         }
                     }
 
+                // Query fact-check API in parallel with model preparation
+                val evidenceDeferred =
+                    async(Dispatchers.IO) {
+                        runCatching { factCheckApi.search(prompt) }.getOrDefault(emptyList())
+                    }
+
+                val evidence = evidenceDeferred.await()
+                val evidenceContext = EvidenceInjector.buildContext(evidence)
+
                 val result =
                     runCatching {
                         withContext(Dispatchers.Default) {
                             if (imageTempFile != null) {
                                 try {
-                                    engine.generateWithImage(prompt, imageTempFile.absolutePath)
+                                    engine.generateWithImage(prompt, imageTempFile.absolutePath, evidenceContext)
                                 } catch (_: Exception) {
-                                    engine.generate(prompt)
+                                    engine.generate(prompt, evidenceContext)
                                 }
                             } else {
-                                engine.generate(prompt)
+                                engine.generate(prompt, evidenceContext)
                             }
                         }
                     }
 
                 imageTempFile?.delete()
+                lastEvidence = evidence
 
                 val responseText =
                     result.getOrElse { t ->

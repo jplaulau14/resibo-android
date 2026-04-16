@@ -46,10 +46,11 @@ class LlmTriageEngine
          */
         fun generate(
             userInput: String,
+            evidenceContext: String = "",
             modelPath: File = defaultModelPath,
         ): String {
             val eng = ensureLoaded(modelPath)
-            val prompt = buildTriagePrompt(userInput)
+            val prompt = buildTriagePrompt(userInput, evidenceContext)
             val started = System.currentTimeMillis()
             val message =
                 eng.createConversation().use { conversation ->
@@ -75,12 +76,14 @@ class LlmTriageEngine
         fun generateWithImage(
             userInput: String,
             imagePath: String,
+            evidenceContext: String = "",
             modelPath: File = defaultModelPath,
         ): String {
             val eng = ensureLoaded(modelPath)
             val system = promptLoader.load(PromptLoader.TRIAGE_SYSTEM)
+            val evidenceBlock = if (evidenceContext.isNotBlank()) "\n$evidenceContext\n" else "\n---\n\n"
             val textPrompt =
-                "${system.trim()}\n\n---\n\nUser's shared post (with image attached):\n\n${userInput.trim()}"
+                "${system.trim()}$evidenceBlock\nUser's shared post (with image attached):\n\n${userInput.trim()}"
 
             val contents =
                 Contents.of(
@@ -130,9 +133,21 @@ class LlmTriageEngine
             engine = null
         }
 
-        private fun buildTriagePrompt(userInput: String): String {
+        /**
+         * Build the prompt, optionally prepending fact-check evidence from the API.
+         * When [evidenceContext] is non-empty, the model sees real sources before the
+         * user's claim — dramatically improving citation quality.
+         */
+        fun buildTriagePrompt(
+            userInput: String,
+            evidenceContext: String = "",
+        ): String {
             val system = promptLoader.load(PromptLoader.TRIAGE_SYSTEM)
-            return "${system.trim()}\n\n---\n\nUser's shared post:\n\n${userInput.trim()}"
+            return if (evidenceContext.isNotBlank()) {
+                "${system.trim()}\n\n$evidenceContext\nUser's shared post:\n\n${userInput.trim()}"
+            } else {
+                "${system.trim()}\n\n---\n\nUser's shared post:\n\n${userInput.trim()}"
+            }
         }
 
         @Synchronized
