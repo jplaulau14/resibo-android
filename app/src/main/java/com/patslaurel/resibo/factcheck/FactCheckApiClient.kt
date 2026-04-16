@@ -32,7 +32,13 @@ class FactCheckApiClient
         ): List<FactCheckResult> {
             if (query.isBlank()) return emptyList()
 
-            val encoded = URLEncoder.encode(query.take(300), "UTF-8")
+            // Extract English-friendly keywords — the API is keyword-based,
+            // not semantic. Full Tagalog sentences return 0 results.
+            val keywords = extractKeywords(query)
+            if (keywords.isBlank()) return emptyList()
+
+            Log.i(TAG, "Searching: '$keywords' (from: '${query.take(60)}...')")
+            val encoded = URLEncoder.encode(keywords, "UTF-8")
             val url =
                 "$BASE_URL?query=$encoded&pageSize=$maxResults&key=$API_KEY"
 
@@ -79,6 +85,104 @@ class FactCheckApiClient
                     reviewDate = review.optString("reviewDate", claim.optString("claimDate", "")),
                 )
             }
+        }
+
+        /**
+         * Extract search-friendly keywords from potentially Tagalog/Taglish input.
+         * Strategy: keep proper nouns (capitalized), numbers, and English content words.
+         * Drops Tagalog function words (na, ng, sa, mga, at, ay, ang, etc.).
+         */
+        private fun extractKeywords(text: String): String {
+            val tagalogStopWords =
+                setOf(
+                    "na",
+                    "ng",
+                    "sa",
+                    "mga",
+                    "at",
+                    "ay",
+                    "ang",
+                    "ni",
+                    "si",
+                    "ko",
+                    "mo",
+                    "po",
+                    "ba",
+                    "ito",
+                    "yan",
+                    "yun",
+                    "daw",
+                    "raw",
+                    "din",
+                    "rin",
+                    "pa",
+                    "lang",
+                    "naman",
+                    "kasi",
+                    "pero",
+                    "sabi",
+                    "nag",
+                    "may",
+                    "wala",
+                    "kung",
+                    "para",
+                    "ka",
+                    "ako",
+                    "siya",
+                    "sila",
+                    "nila",
+                    "namin",
+                    "natin",
+                    "kami",
+                    "tayo",
+                    "ikaw",
+                    "kanila",
+                    "kumakalat",
+                    "totoo",
+                    "hindi",
+                    "talaga",
+                    "dito",
+                    "doon",
+                    "galing",
+                    "pag",
+                    "dahil",
+                    "tungkol",
+                    "nang",
+                    "noong",
+                    "the",
+                    "is",
+                    "a",
+                    "an",
+                    "in",
+                    "of",
+                    "to",
+                    "and",
+                    "that",
+                    "this",
+                    "it",
+                    "for",
+                    "with",
+                    "from",
+                    "not",
+                    "are",
+                    "was",
+                )
+
+            val words =
+                text
+                    .replace(Regex("[^\\w\\s]"), " ")
+                    .split(Regex("\\s+"))
+                    .filter { word ->
+                        word.length > 2 &&
+                            word.lowercase() !in tagalogStopWords &&
+                            (
+                                word[0].isUpperCase() ||
+                                    word.any { it.isDigit() } ||
+                                    word.length > 5
+                            )
+                    }.take(8)
+
+            return words.joinToString(" ")
         }
 
         companion object {
