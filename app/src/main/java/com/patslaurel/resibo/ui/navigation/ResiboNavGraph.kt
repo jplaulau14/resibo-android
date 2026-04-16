@@ -3,8 +3,8 @@ package com.patslaurel.resibo.ui.navigation
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -20,11 +20,11 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.patslaurel.resibo.ui.playground.PlaygroundScreen
-import com.patslaurel.resibo.ui.screens.HomeScreen
+import com.patslaurel.resibo.ui.chat.ChatScreen
 import com.patslaurel.resibo.ui.screens.NoteScreen
 import com.patslaurel.resibo.ui.screens.SettingsScreen
-import com.patslaurel.resibo.ui.screens.TraceScreen
+import com.patslaurel.resibo.ui.theme.ThemeMode
+import com.patslaurel.resibo.ui.theme.ThemePreference
 
 private data class BottomNavItem(
     val route: String,
@@ -34,7 +34,7 @@ private data class BottomNavItem(
 
 private val bottomNavItems =
     listOf(
-        BottomNavItem(ResiboRoutes.HOME, "Home", Icons.Filled.Home),
+        BottomNavItem(ResiboRoutes.CHAT, "Chat", Icons.Outlined.AutoAwesome),
         BottomNavItem(ResiboRoutes.NOTE, "History", Icons.Filled.History),
         BottomNavItem(ResiboRoutes.SETTINGS, "Settings", Icons.Filled.Settings),
     )
@@ -42,7 +42,8 @@ private val bottomNavItems =
 @Composable
 fun ResiboNavGraph(
     navController: NavHostController = rememberNavController(),
-    startDestination: String = ResiboRoutes.HOME,
+    themePreference: ThemePreference,
+    currentTheme: ThemeMode,
 ) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
@@ -63,7 +64,7 @@ fun ResiboNavGraph(
                             onClick = {
                                 if (currentDestination?.route != item.route) {
                                     navController.navigate(item.route) {
-                                        popUpTo(ResiboRoutes.HOME) { saveState = true }
+                                        popUpTo(ResiboRoutes.CHAT) { saveState = true }
                                         launchSingleTop = true
                                         restoreState = true
                                     }
@@ -77,25 +78,20 @@ fun ResiboNavGraph(
     ) { innerPadding ->
         NavHost(
             navController = navController,
-            startDestination = startDestination,
+            startDestination = ResiboRoutes.CHAT,
             modifier = Modifier.padding(innerPadding),
         ) {
-            composable(ResiboRoutes.HOME) {
-                HomeScreen(
-                    onOpenPlayground = { navController.navigate(ResiboRoutes.PLAYGROUND) },
-                )
+            composable(ResiboRoutes.CHAT) {
+                ChatScreen()
             }
             composable(ResiboRoutes.NOTE) {
                 NoteScreen()
             }
-            composable(ResiboRoutes.TRACE) {
-                TraceScreen(onBack = { navController.popBackStack() })
-            }
             composable(ResiboRoutes.SETTINGS) {
-                SettingsScreen()
-            }
-            composable(ResiboRoutes.PLAYGROUND) {
-                PlaygroundScreen(onBack = { navController.popBackStack() })
+                SettingsScreen(
+                    currentTheme = currentTheme,
+                    onThemeChange = { themePreference.setThemeMode(it) },
+                )
             }
         }
     }
