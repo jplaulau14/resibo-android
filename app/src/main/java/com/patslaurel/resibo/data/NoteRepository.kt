@@ -92,6 +92,10 @@ class NoteRepository
             }
         }
 
+        suspend fun incrementSeenCount(hash: String) {
+            seenPostDao.incrementSeenCount(hash)
+        }
+
         suspend fun deleteNote(noteId: Long) {
             noteDao.deleteById(noteId)
         }

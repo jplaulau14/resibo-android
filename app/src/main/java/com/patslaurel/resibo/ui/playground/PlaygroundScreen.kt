@@ -116,6 +116,10 @@ private fun GenerationResult(state: GenerationState) {
     when (state) {
         GenerationState.Idle -> Unit
 
+        is GenerationState.CacheHit -> Unit
+
+        // not applicable in Playground
+
         GenerationState.Generating -> {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 CircularProgressIndicator()

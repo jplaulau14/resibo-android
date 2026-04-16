@@ -33,6 +33,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.lifecycleScope
 import com.patslaurel.resibo.data.NoteRepository
 import com.patslaurel.resibo.data.entity.NoteEntity
+import com.patslaurel.resibo.hash.ImageHasher
+import com.patslaurel.resibo.hash.PerceptualHash
 import com.patslaurel.resibo.llm.GenerationState
 import com.patslaurel.resibo.llm.LlmTriageEngine
 import com.patslaurel.resibo.llm.NoteParser
@@ -64,7 +66,7 @@ class ShareReceiverActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         post = intent?.toSharedPost(contentResolver) ?: SharedPost()
-        maybeAutoGenerate(intent)
+        checkCacheHitThenMaybeAutoGenerate(intent)
 
         setContent {
             ResiboTheme {
@@ -83,16 +85,52 @@ class ShareReceiverActivity : ComponentActivity() {
         setIntent(intent)
         post = intent.toSharedPost(contentResolver)
         generation = GenerationState.Idle
-        maybeAutoGenerate(intent)
+        checkCacheHitThenMaybeAutoGenerate(intent)
     }
 
-    private fun maybeAutoGenerate(intent: Intent?) {
-        if (intent?.getBooleanExtra(ShareIntents.EXTRA_AUTO_GENERATE, false) != true) return
-        val prompt = post.text?.takeIf { it.isNotBlank() } ?: return
-        runGeneration(prompt)
+    /** Check if any shared image matches a previously-seen post. If so, surface the cached Note. */
+    private fun checkCacheHitThenMaybeAutoGenerate(intent: Intent?) {
+        lifecycleScope.launch {
+            val imageHash = computeImageHash()
+            if (imageHash != null) {
+                val cached = noteRepository.findNearDuplicate(imageHash)
+                if (cached != null) {
+                    val note =
+                        withContext(Dispatchers.Default) {
+                            noteRepository.getNoteWithDetails(cached.noteId)
+                        }
+                    if (note != null) {
+                        generation =
+                            GenerationState.CacheHit(
+                                noteText = note.note.fullResponse,
+                                originalClaim = note.note.claim,
+                                seenCount = cached.seenCount,
+                            )
+                        withContext(Dispatchers.Default) {
+                            noteRepository.incrementSeenCount(cached.perceptualHash)
+                        }
+                        return@launch
+                    }
+                }
+            }
+            if (intent?.getBooleanExtra(ShareIntents.EXTRA_AUTO_GENERATE, false) == true) {
+                val prompt = post.text?.takeIf { it.isNotBlank() } ?: return@launch
+                runGeneration(prompt, imageHash)
+            }
+        }
     }
 
-    private fun runGeneration(prompt: String) {
+    private suspend fun computeImageHash(): Long? {
+        val uri = post.imageUris.firstOrNull() ?: return null
+        return withContext(Dispatchers.Default) {
+            ImageHasher.dHashFromUri(contentResolver, uri)
+        }
+    }
+
+    private fun runGeneration(
+        prompt: String,
+        imageHash: Long? = null,
+    ) {
         if (generation is GenerationState.Generating) return
         generation = GenerationState.Generating
         lifecycleScope.launch {
@@ -112,7 +150,7 @@ class ShareReceiverActivity : ComponentActivity() {
             generation = newState
 
             if (newState is GenerationState.Result) {
-                saveNote(prompt, newState)
+                saveNote(prompt, newState, imageHash)
             }
         }
     }
@@ -120,6 +158,7 @@ class ShareReceiverActivity : ComponentActivity() {
     private suspend fun saveNote(
         prompt: String,
         result: GenerationState.Result,
+        imageHash: Long? = null,
     ) {
         runCatching {
             val parsed = NoteParser.parse(result.text)
@@ -137,7 +176,7 @@ class ShareReceiverActivity : ComponentActivity() {
                     outputChars = result.text.length,
                     generationMs = result.elapsedMs,
                     mimeType = post.mimeType,
-                    perceptualHash = null,
+                    perceptualHash = imageHash?.let { PerceptualHash.toHex(it) },
                 ),
             )
         }
@@ -187,12 +226,18 @@ private fun ShareReceiverScreen(
                 else -> PostDetails(post)
             }
 
-            if (!post.text.isNullOrBlank() && post.kind != SharedPost.Kind.URL_ONLY) {
-                GenerationPanel(
-                    prompt = post.text,
-                    state = generation,
-                    onGenerate = onGenerate,
-                )
+            when (generation) {
+                is GenerationState.CacheHit -> CacheHitCard(generation as GenerationState.CacheHit)
+
+                else -> {
+                    if (!post.text.isNullOrBlank() && post.kind != SharedPost.Kind.URL_ONLY) {
+                        GenerationPanel(
+                            prompt = post.text,
+                            state = generation,
+                            onGenerate = onGenerate,
+                        )
+                    }
+                }
             }
         }
     }
@@ -219,11 +264,15 @@ private fun GenerationPanel(
     when (state) {
         GenerationState.Idle -> Unit
 
+        is GenerationState.CacheHit -> Unit
+
+        // handled at screen level
+
         GenerationState.Generating -> {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 CircularProgressIndicator()
                 Text(
-                    text = "Running Gemma 3 1B on CPU — first call loads the model (~15–30s), subsequent calls are faster.",
+                    text = "Running Gemma 4 E2B on CPU — first call loads the model (~4s), generation ~15–20s.",
                     style = MaterialTheme.typography.bodySmall,
                 )
             }
@@ -249,6 +298,36 @@ private fun GenerationPanel(
                     Text(state.message, style = MaterialTheme.typography.bodySmall)
                 }
             }
+    }
+}
+
+@Composable
+private fun CacheHitCard(cacheHit: GenerationState.CacheHit) {
+    Card(
+        colors =
+            CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.secondaryContainer,
+            ),
+    ) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(
+                text = "Previously fact-checked",
+                style = MaterialTheme.typography.titleSmall,
+            )
+            Text(
+                text = "This image matches a post that was checked before (seen ${cacheHit.seenCount} time${if (cacheHit.seenCount != 1) "s" else ""}).",
+                style = MaterialTheme.typography.bodySmall,
+            )
+            Text(
+                text = "Original claim: ${cacheHit.originalClaim}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.outline,
+            )
+            Text(
+                text = cacheHit.noteText,
+                style = MaterialTheme.typography.bodyMedium,
+            )
+        }
     }
 }
 

@@ -14,6 +14,13 @@ sealed interface GenerationState {
         val elapsedMs: Long,
     ) : GenerationState
 
+    /** A previously-generated Note was found via perceptual-hash near-duplicate match. */
+    data class CacheHit(
+        val noteText: String,
+        val originalClaim: String,
+        val seenCount: Int,
+    ) : GenerationState
+
     data class Error(
         val message: String,
     ) : GenerationState
