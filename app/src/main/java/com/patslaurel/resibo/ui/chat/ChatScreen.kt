@@ -65,9 +65,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.patslaurel.resibo.factcheck.FactCheckResult
 import com.patslaurel.resibo.ui.components.MarkdownText
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import android.content.Intent as AndroidIntent
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -157,6 +159,7 @@ private fun ChatBubble(message: ChatMessage) {
     Column(
         modifier = Modifier.fillMaxWidth(),
         horizontalAlignment = if (isUser) Alignment.End else Alignment.Start,
+        verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         Surface(
             shape =
@@ -191,6 +194,83 @@ private fun ChatBubble(message: ChatMessage) {
                         )
                     } else {
                         MarkdownText(message.text)
+                    }
+                }
+            }
+        }
+
+        if (!isUser && message.sources.isNotEmpty()) {
+            SourcesCard(message.sources)
+        }
+    }
+}
+
+@Composable
+private fun SourcesCard(sources: List<FactCheckResult>) {
+    val context = LocalContext.current
+
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.tertiaryContainer,
+        modifier = Modifier.widthIn(max = 320.dp),
+    ) {
+        Column(
+            Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                text = "Sources (${sources.size})",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onTertiaryContainer,
+            )
+            sources.forEach { source ->
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = MaterialTheme.colorScheme.surface,
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                runCatching {
+                                    val intent =
+                                        AndroidIntent(
+                                            AndroidIntent.ACTION_VIEW,
+                                            android.net.Uri.parse(source.reviewUrl),
+                                        )
+                                    context.startActivity(intent)
+                                }
+                            },
+                ) {
+                    Column(Modifier.padding(10.dp)) {
+                        Text(
+                            text = source.publisherName,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                        Text(
+                            text = source.claimText.take(100) + if (source.claimText.length > 100) "..." else "",
+                            style = MaterialTheme.typography.bodySmall,
+                            maxLines = 2,
+                        )
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text(
+                                text = "Rating: ${source.rating}",
+                                style = MaterialTheme.typography.labelSmall,
+                                color =
+                                    when (source.rating.lowercase()) {
+                                        "false", "fake" -> MaterialTheme.colorScheme.error
+                                        "true" -> MaterialTheme.colorScheme.primary
+                                        else -> MaterialTheme.colorScheme.outline
+                                    },
+                            )
+                            if (source.reviewDate.isNotBlank()) {
+                                Text(
+                                    text = source.reviewDate.take(10),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.outline,
+                                )
+                            }
+                        }
                     }
                 }
             }

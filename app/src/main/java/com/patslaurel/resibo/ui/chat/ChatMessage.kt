@@ -1,6 +1,7 @@
 package com.patslaurel.resibo.ui.chat
 
 import android.net.Uri
+import com.patslaurel.resibo.factcheck.FactCheckResult
 import java.util.UUID
 
 data class ChatMessage(
@@ -10,6 +11,7 @@ data class ChatMessage(
     val imageUri: Uri? = null,
     val timestamp: Long = System.currentTimeMillis(),
     val isGenerating: Boolean = false,
+    val sources: List<FactCheckResult> = emptyList(),
 ) {
     enum class Role {
         USER,

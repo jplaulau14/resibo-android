@@ -135,7 +135,11 @@ class ChatViewModel
                     val updated =
                         current.messages.map { msg ->
                             if (msg.isGenerating) {
-                                msg.copy(text = responseText, isGenerating = false)
+                                msg.copy(
+                                    text = responseText,
+                                    isGenerating = false,
+                                    sources = evidence,
+                                )
                             } else {
                                 msg
                             }
