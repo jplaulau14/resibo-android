@@ -1,10 +1,10 @@
-package com.patslaurel.resibo.ui.chat
+package com.patslaurel.resibo.share
 
 import android.net.Uri
 
 /**
  * Lightweight singleton for passing shared content from [ShareReceiverActivity]
- * to [ChatViewModel] across the activity boundary. Consumed once on read.
+ * to CheckViewModel across the activity boundary. Consumed once on read.
  */
 object PendingShare {
     var text: String? = null

@@ -7,7 +7,7 @@ package com.patslaurel.resibo.ui.navigation
  * Navigation 2.8's type-safe routes (Kotlin Serialization-backed `@Serializable` objects).
  */
 object ResiboRoutes {
-    const val CHAT = "chat"
-    const val NOTE = "note"
+    const val CHECK = "check"
+    const val HISTORY = "history"
     const val SETTINGS = "settings"
 }

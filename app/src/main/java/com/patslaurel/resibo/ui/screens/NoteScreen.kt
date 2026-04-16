@@ -27,6 +27,7 @@ import androidx.compose.material3.SuggestionChipDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -42,7 +43,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import com.patslaurel.resibo.data.NoteRepository
 import com.patslaurel.resibo.data.entity.NoteEntity
-import com.patslaurel.resibo.ui.components.MarkdownText
+import com.patslaurel.resibo.data.entity.SourceEntity
+import com.patslaurel.resibo.factcheck.FactCheckResult
+import com.patslaurel.resibo.ui.check.CheckResult
+import com.patslaurel.resibo.ui.components.NoteCard
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -53,22 +57,45 @@ import java.util.Locale
 import javax.inject.Inject
 
 @HiltViewModel
-class NoteHistoryViewModel
+class HistoryViewModel
     @Inject
     constructor(
-        noteRepository: NoteRepository,
+        private val noteRepository: NoteRepository,
     ) : ViewModel() {
         val notes: StateFlow<List<NoteEntity>> =
             noteRepository
                 .observeAll()
                 .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+        suspend fun getSourcesForNote(noteId: Long): List<SourceEntity> =
+            noteRepository.getNoteWithDetails(noteId)?.sources ?: emptyList()
     }
+
+private fun NoteEntity.toCheckResult(storedSources: List<SourceEntity>): CheckResult =
+    CheckResult(
+        claim = claim,
+        analysis = fullResponse,
+        sources =
+            storedSources.map { source ->
+                FactCheckResult(
+                    claimText = claim,
+                    claimant = "",
+                    rating = "",
+                    reviewUrl = source.url ?: "",
+                    reviewTitle = source.title,
+                    publisherName = source.domain ?: "",
+                    publisherSite = source.domain ?: "",
+                    reviewDate = "",
+                )
+            },
+        responseTimeMs = generationMs,
+    )
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun NoteScreen(
+fun HistoryScreen(
     modifier: Modifier = Modifier,
-    viewModel: NoteHistoryViewModel = hiltViewModel(),
+    viewModel: HistoryViewModel = hiltViewModel(),
 ) {
     val notes by viewModel.notes.collectAsStateWithLifecycle()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
@@ -104,7 +131,7 @@ fun NoteScreen(
                     modifier = Modifier.padding(top = 16.dp),
                 )
                 Text(
-                    text = "Share a post or use the Playground to generate your first Note.",
+                    text = "Share a post or use the Check tab to generate your first Note.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 4.dp),
@@ -117,7 +144,7 @@ fun NoteScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 items(notes, key = { it.id }) { note ->
-                    NoteCard(note)
+                    HistoryNoteCard(note = note, viewModel = viewModel)
                 }
             }
         }
@@ -125,7 +152,10 @@ fun NoteScreen(
 }
 
 @Composable
-private fun NoteCard(note: NoteEntity) {
+private fun HistoryNoteCard(
+    note: NoteEntity,
+    viewModel: HistoryViewModel,
+) {
     var expanded by remember { mutableStateOf(false) }
 
     Card(
@@ -192,10 +222,13 @@ private fun NoteCard(note: NoteEntity) {
             )
 
             if (expanded) {
-                MarkdownText(
-                    markdown = note.fullResponse,
-                    modifier = Modifier.padding(top = 4.dp),
-                )
+                var sources by remember { mutableStateOf(emptyList<SourceEntity>()) }
+
+                LaunchedEffect(note.id) {
+                    sources = viewModel.getSourcesForNote(note.id)
+                }
+
+                NoteCard(checkResult = note.toCheckResult(sources))
             }
         }
     }

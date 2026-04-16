@@ -4,7 +4,7 @@ import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import com.patslaurel.resibo.MainActivity
-import com.patslaurel.resibo.ui.chat.PendingShare
+import com.patslaurel.resibo.share.PendingShare
 import dagger.hilt.android.AndroidEntryPoint
 
 /**

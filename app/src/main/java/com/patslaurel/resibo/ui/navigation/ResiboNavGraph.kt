@@ -20,8 +20,8 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.patslaurel.resibo.ui.chat.ChatScreen
-import com.patslaurel.resibo.ui.screens.NoteScreen
+import com.patslaurel.resibo.ui.check.CheckScreen
+import com.patslaurel.resibo.ui.screens.HistoryScreen
 import com.patslaurel.resibo.ui.screens.SettingsScreen
 import com.patslaurel.resibo.ui.theme.ThemeMode
 import com.patslaurel.resibo.ui.theme.ThemePreference
@@ -34,8 +34,8 @@ private data class BottomNavItem(
 
 private val bottomNavItems =
     listOf(
-        BottomNavItem(ResiboRoutes.CHAT, "Chat", Icons.Outlined.AutoAwesome),
-        BottomNavItem(ResiboRoutes.NOTE, "History", Icons.Filled.History),
+        BottomNavItem(ResiboRoutes.CHECK, "Check", Icons.Outlined.AutoAwesome),
+        BottomNavItem(ResiboRoutes.HISTORY, "History", Icons.Filled.History),
         BottomNavItem(ResiboRoutes.SETTINGS, "Settings", Icons.Filled.Settings),
     )
 
@@ -64,7 +64,7 @@ fun ResiboNavGraph(
                             onClick = {
                                 if (currentDestination?.route != item.route) {
                                     navController.navigate(item.route) {
-                                        popUpTo(ResiboRoutes.CHAT) { saveState = true }
+                                        popUpTo(ResiboRoutes.CHECK) { saveState = true }
                                         launchSingleTop = true
                                         restoreState = true
                                     }
@@ -78,14 +78,14 @@ fun ResiboNavGraph(
     ) { innerPadding ->
         NavHost(
             navController = navController,
-            startDestination = ResiboRoutes.CHAT,
+            startDestination = ResiboRoutes.CHECK,
             modifier = Modifier.padding(innerPadding),
         ) {
-            composable(ResiboRoutes.CHAT) {
-                ChatScreen()
+            composable(ResiboRoutes.CHECK) {
+                CheckScreen()
             }
-            composable(ResiboRoutes.NOTE) {
-                NoteScreen()
+            composable(ResiboRoutes.HISTORY) {
+                HistoryScreen()
             }
             composable(ResiboRoutes.SETTINGS) {
                 SettingsScreen(

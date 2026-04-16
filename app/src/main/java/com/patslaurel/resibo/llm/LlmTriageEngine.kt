@@ -8,6 +8,9 @@ import com.google.ai.edge.litertlm.Contents
 import com.google.ai.edge.litertlm.Engine
 import com.google.ai.edge.litertlm.EngineConfig
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onCompletion
 import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -66,6 +69,57 @@ class LlmTriageEngine
                 "generate(promptChars=${prompt.length}, outputChars=${result.length}) took ${elapsed}ms",
             )
             return result
+        }
+
+        /**
+         * Streaming variant of [generate]. Returns a [Flow] of partial text chunks.
+         */
+        fun generateStreaming(
+            userInput: String,
+            evidenceContext: String = "",
+            modelPath: File = defaultModelPath,
+        ): Flow<String> {
+            val eng = ensureLoaded(modelPath)
+            val prompt = buildTriagePrompt(userInput, evidenceContext)
+            val conversation = eng.createConversation()
+            return conversation.sendMessageAsync(prompt)
+                .map { message ->
+                    message.contents.contents
+                        .filterIsInstance<Content.Text>()
+                        .joinToString("") { it.text }
+                }
+                .onCompletion { conversation.close() }
+        }
+
+        /**
+         * Streaming variant of [generateWithImage]. Returns a [Flow] of partial text chunks.
+         */
+        fun generateWithImageStreaming(
+            userInput: String,
+            imagePath: String,
+            evidenceContext: String = "",
+            modelPath: File = defaultModelPath,
+        ): Flow<String> {
+            val eng = ensureLoaded(modelPath)
+            val system = promptLoader.load(PromptLoader.TRIAGE_SYSTEM)
+            val evidenceBlock = if (evidenceContext.isNotBlank()) "\n$evidenceContext\n" else "\n---\n\n"
+            val textPrompt =
+                "${system.trim()}$evidenceBlock\nUser's shared post (with image attached):\n\n${userInput.trim()}"
+
+            val contents =
+                Contents.of(
+                    Content.ImageFile(imagePath),
+                    Content.Text(textPrompt),
+                )
+
+            val conversation = eng.createConversation()
+            return conversation.sendMessageAsync(contents)
+                .map { message ->
+                    message.contents.contents
+                        .filterIsInstance<Content.Text>()
+                        .joinToString("") { it.text }
+                }
+                .onCompletion { conversation.close() }
         }
 
         /**
