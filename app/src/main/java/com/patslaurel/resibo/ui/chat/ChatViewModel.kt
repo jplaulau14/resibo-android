@@ -103,7 +103,6 @@ class ChatViewModel
                         }
                     }
 
-                // Pass 1: Let Gemma extract English search keywords from any-language input
                 val keywords =
                     try {
                         withContext(Dispatchers.Default) {
@@ -115,11 +114,9 @@ class ChatViewModel
                     }
                 Log.i(TAG, "Gemma extracted keywords: '$keywords'")
 
-                // Search fact-check API with Gemma's keywords (cascade: full → fewer)
                 var evidence: List<FactCheckResult> = emptyList()
                 if (keywords.isNotBlank()) {
                     val keywordList = keywords.split(Regex("\\s+"))
-                    // Try progressively fewer keywords until we get results
                     for (count in listOf(keywordList.size, 3, 2)) {
                         if (count > keywordList.size) continue
                         val query = keywordList.take(count).joinToString(" ")

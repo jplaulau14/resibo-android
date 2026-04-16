@@ -209,7 +209,6 @@ class FactCheckApiClient
             private const val BASE_URL =
                 "https://factchecktools.googleapis.com/v1alpha1/claims:search"
 
-            // Scoped to factchecktools.googleapis.com only
             private const val API_KEY = "REDACTED_GOOGLE_API_KEY"
         }
     }

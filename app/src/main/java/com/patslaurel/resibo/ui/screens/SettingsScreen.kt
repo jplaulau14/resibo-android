@@ -50,7 +50,6 @@ fun SettingsScreen(
                     .padding(innerPadding)
                     .verticalScroll(rememberScrollState()),
         ) {
-            // Appearance
             ListItem(
                 headlineContent = { Text("Appearance") },
                 supportingContent = {

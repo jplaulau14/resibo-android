@@ -2,7 +2,6 @@ package com.patslaurel.resibo.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Neutral, modern palette — clean blacks/whites with a single teal accent
 val Primary = Color(0xFF0F9D8F)
 val OnPrimary = Color(0xFFFFFFFF)
 val PrimaryContainer = Color(0xFFB2F0E8)
@@ -31,7 +30,6 @@ val SurfaceVariant = Color(0xFFDAE5E2)
 val OnSurfaceVariant = Color(0xFF3F4947)
 val Outline = Color(0xFF6F7977)
 
-// Dark theme
 val DarkPrimary = Color(0xFF5DDBC9)
 val DarkOnPrimary = Color(0xFF003732)
 val DarkPrimaryContainer = Color(0xFF005048)

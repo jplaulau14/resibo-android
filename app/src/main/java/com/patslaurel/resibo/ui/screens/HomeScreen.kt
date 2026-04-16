@@ -72,7 +72,6 @@ fun HomeScreen(
                     .padding(horizontal = 20.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp),
         ) {
-            // How to use
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors =
@@ -104,7 +103,6 @@ fun HomeScreen(
                 }
             }
 
-            // Quick actions
             Text(
                 text = "Quick actions",
                 style = MaterialTheme.typography.titleMedium,
