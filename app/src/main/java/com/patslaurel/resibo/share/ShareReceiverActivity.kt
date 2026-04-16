@@ -31,6 +31,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.lifecycleScope
+import com.patslaurel.resibo.data.NoteRepository
+import com.patslaurel.resibo.data.entity.NoteEntity
 import com.patslaurel.resibo.llm.GenerationState
 import com.patslaurel.resibo.llm.LlmTriageEngine
 import com.patslaurel.resibo.ui.theme.ResiboTheme
@@ -50,6 +52,8 @@ import javax.inject.Inject
 @AndroidEntryPoint
 class ShareReceiverActivity : ComponentActivity() {
     @Inject lateinit var llmEngine: LlmTriageEngine
+
+    @Inject lateinit var noteRepository: NoteRepository
 
     private var post by mutableStateOf(SharedPost())
     private var generation by mutableStateOf<GenerationState>(GenerationState.Idle)
@@ -99,11 +103,41 @@ class ShareReceiverActivity : ComponentActivity() {
                     }
                 }
             val elapsed = System.currentTimeMillis() - started
-            generation =
+            val newState =
                 outcome.fold(
                     onSuccess = { text -> GenerationState.Result(text, elapsed) },
                     onFailure = { t -> GenerationState.Error(t.message ?: t.javaClass.simpleName) },
                 )
+            generation = newState
+
+            if (newState is GenerationState.Result) {
+                saveNote(prompt, newState)
+            }
+        }
+    }
+
+    private suspend fun saveNote(
+        prompt: String,
+        result: GenerationState.Result,
+    ) {
+        runCatching {
+            noteRepository.saveNote(
+                NoteEntity(
+                    claim = prompt.take(500),
+                    language = "auto",
+                    checkWorthiness = "unknown",
+                    domain = "unknown",
+                    offlineAssessment = "",
+                    verificationNeeded = "",
+                    fullResponse = result.text,
+                    modelVariant = "gemma-4-e2b-it",
+                    promptChars = prompt.length,
+                    outputChars = result.text.length,
+                    generationMs = result.elapsedMs,
+                    mimeType = post.mimeType,
+                    perceptualHash = null,
+                ),
+            )
         }
     }
 }

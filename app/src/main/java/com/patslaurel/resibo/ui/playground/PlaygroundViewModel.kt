@@ -2,6 +2,8 @@ package com.patslaurel.resibo.ui.playground
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.patslaurel.resibo.data.NoteRepository
+import com.patslaurel.resibo.data.entity.NoteEntity
 import com.patslaurel.resibo.llm.GenerationState
 import com.patslaurel.resibo.llm.LlmTriageEngine
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -14,16 +16,12 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
-/**
- * Backing state for the free-text Gemma playground. One-shot generation — no
- * conversation history, no streaming. Swap to [com.google.mediapipe.tasks.genai.llminference.LlmInferenceSession]
- * when we need multi-turn or token streaming.
- */
 @HiltViewModel
 class PlaygroundViewModel
     @Inject
     constructor(
         private val engine: LlmTriageEngine,
+        private val noteRepository: NoteRepository,
     ) : ViewModel() {
         private val _state = MutableStateFlow(PlaygroundUiState())
         val state: StateFlow<PlaygroundUiState> = _state.asStateFlow()
@@ -44,20 +42,45 @@ class PlaygroundViewModel
                         withContext(Dispatchers.Default) { engine.generate(prompt) }
                     }
                 val elapsed = System.currentTimeMillis() - started
-                _state.update {
-                    it.copy(
-                        generation =
-                            outcome.fold(
-                                onSuccess = { text -> GenerationState.Result(text, elapsed) },
-                                onFailure = { t -> GenerationState.Error(t.message ?: t.javaClass.simpleName) },
-                            ),
+                val newState =
+                    outcome.fold(
+                        onSuccess = { text -> GenerationState.Result(text, elapsed) },
+                        onFailure = { t -> GenerationState.Error(t.message ?: t.javaClass.simpleName) },
                     )
+                _state.update { it.copy(generation = newState) }
+
+                if (newState is GenerationState.Result) {
+                    saveNote(prompt, newState)
                 }
             }
         }
 
         fun reset() {
             _state.update { it.copy(generation = GenerationState.Idle) }
+        }
+
+        private suspend fun saveNote(
+            prompt: String,
+            result: GenerationState.Result,
+        ) {
+            runCatching {
+                noteRepository.saveNote(
+                    NoteEntity(
+                        claim = prompt.take(500),
+                        language = "auto",
+                        checkWorthiness = "unknown",
+                        domain = "unknown",
+                        offlineAssessment = "",
+                        verificationNeeded = "",
+                        fullResponse = result.text,
+                        modelVariant = "gemma-4-e2b-it",
+                        promptChars = prompt.length,
+                        outputChars = result.text.length,
+                        generationMs = result.elapsedMs,
+                        mimeType = "text/plain",
+                    ),
+                )
+            }
         }
     }
 
