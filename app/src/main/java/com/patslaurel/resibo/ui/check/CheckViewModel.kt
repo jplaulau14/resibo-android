@@ -17,6 +17,7 @@ import com.patslaurel.resibo.llm.NoteParser
 import com.patslaurel.resibo.share.PendingShare
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -154,12 +155,13 @@ class CheckViewModel
                             }
                         }
                     }
-                } catch (e: Exception) {
-                    Log.e(TAG, "Agent failed: ${e.message}", e)
+                } catch (error: Exception) {
+                    if (error is CancellationException) throw error
+                    Log.e(TAG, "Agent failed: ${error.message}", error)
                     _state.update {
                         it.copy(
                             currentStep = CheckStep.ERROR,
-                            errorMessage = e.message ?: e.javaClass.simpleName,
+                            errorMessage = error.message ?: error.javaClass.simpleName,
                         )
                     }
                 } finally {
@@ -235,6 +237,8 @@ class CheckViewModel
                             )
                         },
                 )
+            }.onFailure { error ->
+                if (error is CancellationException) throw error
             }
         }
     }

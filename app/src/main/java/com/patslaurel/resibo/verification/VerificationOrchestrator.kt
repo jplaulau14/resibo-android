@@ -1,5 +1,6 @@
 package com.patslaurel.resibo.verification
 
+import kotlinx.coroutines.CancellationException
 import javax.inject.Inject
 
 class VerificationOrchestrator
@@ -24,6 +25,8 @@ class VerificationOrchestrator
 
             runCatching {
                 evidenceStore.saveEvidence(recordsToStore)
+            }.getOrElse { error ->
+                if (error is CancellationException) throw error
             }
 
             return VerificationReport(
@@ -37,6 +40,7 @@ class VerificationOrchestrator
             val tool = toolsByName[call.toolName] ?: return blockedResult(call)
             return runCatching { tool.execute(call) }
                 .getOrElse { error ->
+                    if (error is CancellationException) throw error
                     VerificationToolResult(
                         toolName = call.toolName,
                         input = call.inputSummary(),

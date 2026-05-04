@@ -1,8 +1,11 @@
 package com.patslaurel.resibo.verification
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Test
 
 class VerificationOrchestratorTest {
@@ -128,6 +131,53 @@ class VerificationOrchestratorTest {
             assertEquals(listOf("online query"), tool.executedInputs)
         }
 
+    @Test
+    fun `tool cancellation is rethrown`() =
+        runBlocking {
+            val cancellation = CancellationException("cancel tool")
+            val orchestrator =
+                VerificationOrchestrator(
+                    listOf(CancellingTool("cancel", cancellation)),
+                    FakeEvidenceStore(),
+                )
+            val plan =
+                VerificationPlan(
+                    claim = "Cancelled claim",
+                    toolCalls = listOf(VerificationToolCall(toolName = "cancel", query = "cancel query")),
+                )
+
+            try {
+                orchestrator.verify(plan)
+                fail("Expected CancellationException")
+            } catch (error: CancellationException) {
+                assertSame(cancellation, error)
+            }
+        }
+
+    @Test
+    fun `store cancellation is rethrown`() =
+        runBlocking {
+            val cancellation = CancellationException("cancel store")
+            val onlineRecord = record(SourceType.FACT_CHECK, "Online evidence")
+            val orchestrator =
+                VerificationOrchestrator(
+                    listOf(FakeTool("online", records = listOf(onlineRecord))),
+                    CancellingEvidenceStore(cancellation),
+                )
+            val plan =
+                VerificationPlan(
+                    claim = "Cancelled persistence claim",
+                    toolCalls = listOf(VerificationToolCall(toolName = "online", query = "online query")),
+                )
+
+            try {
+                orchestrator.verify(plan)
+                fail("Expected CancellationException")
+            } catch (error: CancellationException) {
+                assertSame(cancellation, error)
+            }
+        }
+
     private class FakeEvidenceStore : EvidenceStore {
         val savedRecords = mutableListOf<EvidenceRecord>()
 
@@ -139,6 +189,13 @@ class VerificationOrchestratorTest {
     private class FailingEvidenceStore : EvidenceStore {
         override suspend fun saveEvidence(records: List<EvidenceRecord>) =
             throw IllegalStateException("database unavailable")
+    }
+
+    private class CancellingEvidenceStore(
+        private val cancellation: CancellationException,
+    ) : EvidenceStore {
+        override suspend fun saveEvidence(records: List<EvidenceRecord>) =
+            throw cancellation
     }
 
     private class FakeTool(
@@ -156,6 +213,14 @@ class VerificationOrchestratorTest {
                 records = records,
             )
         }
+    }
+
+    private class CancellingTool(
+        override val name: String,
+        private val cancellation: CancellationException,
+    ) : VerificationTool {
+        override suspend fun execute(call: VerificationToolCall): VerificationToolResult =
+            throw cancellation
     }
 
     private fun record(

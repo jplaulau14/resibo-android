@@ -12,6 +12,7 @@ import com.patslaurel.resibo.verification.VerificationPolicy
 import com.patslaurel.resibo.verification.VerificationReport
 import com.patslaurel.resibo.verification.VerificationToolCall
 import com.patslaurel.resibo.verification.VerificationToolResult
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -76,6 +77,7 @@ class AgentRunner
                                     .trim()
                                     .ifBlank { "Image analysis returned no text." }
                             }.getOrElse { error ->
+                                if (error is CancellationException) throw error
                                 val message = error.message ?: error.javaClass.simpleName
                                 Log.w(TAG, "Agent: image analysis failed: $message", error)
                                 "Could not analyze image: $message"
@@ -99,6 +101,7 @@ class AgentRunner
                     runCatching {
                         engine.generatePlannerJson(userMessage)
                     }.getOrElse { error ->
+                        if (error is CancellationException) throw error
                         val message = error.message ?: error.javaClass.simpleName
                         Log.w(TAG, "Agent: verification planner generation failed: $message", error)
                         ""
