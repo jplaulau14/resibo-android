@@ -2,6 +2,7 @@ package com.patslaurel.resibo.factcheck
 
 import android.util.Log
 import org.json.JSONObject
+import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
@@ -22,25 +23,47 @@ class FactCheckApiClient
     @Inject
     constructor() {
         /**
-         * Search for fact-checks related to [query]. Returns up to [maxResults]
-         * structured results. Returns empty list on network error or no matches.
-         * Must be called off the main thread.
-         */
-        /**
          * Search with raw keywords (already extracted by Gemma).
-         * No keyword extraction — pass directly to the API.
+         * No keyword extraction; pass directly to the API.
+         * Returns empty list on network error or no matches.
          */
         fun searchRaw(
             keywords: String,
             maxResults: Int = 5,
         ): List<FactCheckResult> {
             if (keywords.isBlank()) return emptyList()
+            return try {
+                searchRawStrict(keywords, maxResults)
+            } catch (e: Exception) {
+                Log.w(TAG, "Fact Check API error: ${e.message}")
+                emptyList()
+            }
+        }
+
+        fun searchRawStrict(
+            keywords: String,
+            maxResults: Int = 5,
+        ): List<FactCheckResult> {
+            if (keywords.isBlank()) return emptyList()
             Log.i(TAG, "Searching raw: '$keywords'")
             val encoded = URLEncoder.encode(keywords.take(200), "UTF-8")
-            return executeSearch(encoded, maxResults)
+            return executeSearchStrict(encoded, maxResults)
         }
 
         fun search(
+            query: String,
+            maxResults: Int = 5,
+        ): List<FactCheckResult> {
+            if (query.isBlank()) return emptyList()
+            return try {
+                searchStrict(query, maxResults)
+            } catch (e: Exception) {
+                Log.w(TAG, "Fact Check API error: ${e.message}")
+                emptyList()
+            }
+        }
+
+        fun searchStrict(
             query: String,
             maxResults: Int = 5,
         ): List<FactCheckResult> {
@@ -51,36 +74,32 @@ class FactCheckApiClient
 
             Log.i(TAG, "Searching: '$keywords' (from: '${query.take(60)}...')")
             val encoded = URLEncoder.encode(keywords, "UTF-8")
-            val url =
-                "$BASE_URL?query=$encoded&pageSize=$maxResults&key=$API_KEY"
-
-            return executeSearch(encoded, maxResults)
+            return executeSearchStrict(encoded, maxResults)
         }
 
-        private fun executeSearch(
+        private fun executeSearchStrict(
             encodedQuery: String,
             maxResults: Int,
         ): List<FactCheckResult> {
             val url = "$BASE_URL?query=$encodedQuery&pageSize=$maxResults&key=$API_KEY"
+            val conn = URL(url).openConnection() as HttpURLConnection
             return try {
-                val conn = URL(url).openConnection() as HttpURLConnection
                 conn.requestMethod = "GET"
                 conn.connectTimeout = 10_000
                 conn.readTimeout = 10_000
 
-                if (conn.responseCode != 200) {
-                    Log.w(TAG, "Fact Check API returned ${conn.responseCode}")
-                    return emptyList()
+                val responseCode = conn.responseCode
+                if (responseCode != 200) {
+                    Log.w(TAG, "Fact Check API returned $responseCode")
+                    throw IOException("Fact Check API returned HTTP $responseCode")
                 }
 
                 val body = conn.inputStream.bufferedReader().use { it.readText() }
-                conn.disconnect()
                 val results = parseResponse(body)
                 Log.i(TAG, "API returned ${results.size} fact-check results")
                 results
-            } catch (e: Exception) {
-                Log.w(TAG, "Fact Check API error: ${e.message}")
-                emptyList()
+            } finally {
+                conn.disconnect()
             }
         }
 

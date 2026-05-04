@@ -3,6 +3,7 @@ package com.patslaurel.resibo.factcheck
 import android.util.Log
 import org.json.JSONArray
 import org.json.JSONObject
+import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
 import javax.inject.Inject
@@ -13,6 +14,17 @@ class PerplexityClient
     @Inject
     constructor() {
         fun search(claim: String): PerplexityResult {
+            if (claim.isBlank()) return PerplexityResult.EMPTY
+
+            return try {
+                searchStrict(claim)
+            } catch (e: Exception) {
+                Log.w(TAG, "Perplexity error: ${e.message}")
+                PerplexityResult.EMPTY
+            }
+        }
+
+        fun searchStrict(claim: String): PerplexityResult {
             if (claim.isBlank()) return PerplexityResult.EMPTY
             Log.i(TAG, "Searching: '${claim.take(80)}...'")
 
@@ -38,8 +50,8 @@ class PerplexityClient
                     )
                 }
 
+            val conn = URL(API_URL).openConnection() as HttpURLConnection
             return try {
-                val conn = URL(API_URL).openConnection() as HttpURLConnection
                 conn.requestMethod = "POST"
                 conn.setRequestProperty("Authorization", "Bearer $API_KEY")
                 conn.setRequestProperty("Content-Type", "application/json")
@@ -48,17 +60,16 @@ class PerplexityClient
                 conn.doOutput = true
                 conn.outputStream.use { it.write(requestBody.toString().toByteArray()) }
 
-                if (conn.responseCode != 200) {
-                    Log.w(TAG, "Perplexity returned ${conn.responseCode}")
-                    return PerplexityResult.EMPTY
+                val responseCode = conn.responseCode
+                if (responseCode != 200) {
+                    Log.w(TAG, "Perplexity returned $responseCode")
+                    throw IOException("Perplexity returned HTTP $responseCode")
                 }
 
                 val body = conn.inputStream.bufferedReader().use { it.readText() }
-                conn.disconnect()
                 parseResponse(body)
-            } catch (e: Exception) {
-                Log.w(TAG, "Perplexity error: ${e.message}")
-                PerplexityResult.EMPTY
+            } finally {
+                conn.disconnect()
             }
         }
 

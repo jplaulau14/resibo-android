@@ -17,7 +17,7 @@ class PerplexityDiscoveryTool
         override suspend fun execute(call: VerificationToolCall): VerificationToolResult {
             val startedAt = System.currentTimeMillis()
             return runCatching {
-                val result = perplexityClient.search(call.query)
+                val result = perplexityClient.searchStrict(call.query)
                 mapResult(call, result, startedAt, System.currentTimeMillis())
             }.getOrElse { error ->
                 VerificationToolResult(

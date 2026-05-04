@@ -16,7 +16,7 @@ class OfficialSourceTool
             val startedAt = System.currentTimeMillis()
             val query = officialQuery(call)
             return runCatching {
-                val result = perplexityClient.search(query)
+                val result = perplexityClient.searchStrict(query)
                 mapPerplexityResult(call.copy(query = query), result, startedAt, System.currentTimeMillis())
             }.getOrElse { error ->
                 VerificationToolResult(
@@ -82,7 +82,10 @@ class OfficialSourceTool
                 fetchedAt: Long,
                 snippet: String,
             ): EvidenceRecord {
-                val sourceDomain = PerplexityDiscoveryTool.normalizedDomain(reviewUrl)
+                val sourceDomain =
+                    PerplexityDiscoveryTool
+                        .normalizedDomain(reviewUrl)
+                        .ifBlank { PerplexityDiscoveryTool.normalizedDomain(publisherSite) }
                 val official = preferredDomains.any { preferred -> sourceDomain.matchesPreferred(preferred) }
                 val record =
                     with(PerplexityDiscoveryTool) {

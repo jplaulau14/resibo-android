@@ -17,7 +17,7 @@ class ClaimReviewTool
         override suspend fun execute(call: VerificationToolCall): VerificationToolResult {
             val startedAt = System.currentTimeMillis()
             return runCatching {
-                val results = factCheckApiClient.searchRaw(call.query, call.maxResults)
+                val results = factCheckApiClient.searchRawStrict(call.query, call.maxResults)
                 mapResults(call, results, startedAt, System.currentTimeMillis())
             }.getOrElse { error ->
                 VerificationToolResult(
