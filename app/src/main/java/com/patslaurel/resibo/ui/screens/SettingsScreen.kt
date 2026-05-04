@@ -105,7 +105,7 @@ fun SettingsScreen(
             HorizontalDivider()
             ListItem(
                 headlineContent = { Text("Privacy") },
-                supportingContent = { Text("Fully offline. No sign-in. No telemetry.") },
+                supportingContent = { Text("Local Gemma analysis. Online evidence tools only when needed. No sign-in. No telemetry.") },
             )
             HorizontalDivider()
             ListItem(
