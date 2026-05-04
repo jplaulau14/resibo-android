@@ -51,7 +51,6 @@ The headline for judging is correctness discipline. Agentic breadth and on-devic
    - Executes approved tool calls only.
    - Initial tools:
      - Perplexity discovery.
-     - Google Fact Check / ClaimReview search.
      - Official-source fetch/search.
      - Local evidence search.
    - Each tool returns normalized records plus execution metadata.
@@ -144,16 +143,6 @@ Use cases:
 - Broad current-events discovery.
 - Finding source URLs quickly.
 - Generating candidate official/news/fact-check pages for normalization.
-
-### ClaimReview Tool
-
-Uses Google Fact Check / ClaimReview results for claims that may already be reviewed by fact-checking organizations.
-
-Use cases:
-
-- Known viral claims.
-- Repeated misinformation.
-- Claims with likely fact-check coverage.
 
 ### Official Source Tool
 
@@ -268,7 +257,6 @@ In scope:
 - Kotlin policy gate.
 - Tool abstraction and normalized evidence records.
 - Perplexity discovery as one tool.
-- ClaimReview tool integration or stabilization.
 - Official-source fetch/search for the hero category.
 - Local evidence persistence and search.
 - Updated Note UI with evidence mode and trace.
