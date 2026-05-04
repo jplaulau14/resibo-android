@@ -5,6 +5,13 @@ import com.patslaurel.resibo.factcheck.PerplexityClient
 import com.patslaurel.resibo.factcheck.PerplexityResult
 import com.patslaurel.resibo.llm.LlmTriageEngine
 import com.patslaurel.resibo.llm.PromptLoader
+import com.patslaurel.resibo.verification.EvidenceFormatter
+import com.patslaurel.resibo.verification.VerificationOrchestrator
+import com.patslaurel.resibo.verification.VerificationPlanParser
+import com.patslaurel.resibo.verification.VerificationPolicy
+import com.patslaurel.resibo.verification.VerificationReport
+import com.patslaurel.resibo.verification.VerificationToolCall
+import com.patslaurel.resibo.verification.VerificationToolResult
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -29,8 +36,9 @@ sealed interface AgentEvent {
 
     data class Done(
         val finalNote: String,
-        val toolResults: List<ToolResult>,
-        val perplexityResult: PerplexityResult,
+        val toolResults: List<ToolResult> = emptyList(),
+        val perplexityResult: PerplexityResult = PerplexityResult.EMPTY,
+        val verificationReport: VerificationReport? = null,
     ) : AgentEvent
 
     data class Error(
@@ -45,6 +53,7 @@ class AgentRunner
         private val engine: LlmTriageEngine,
         private val perplexity: PerplexityClient,
         private val promptLoader: PromptLoader,
+        private val verificationOrchestrator: VerificationOrchestrator,
     ) {
         fun run(
             claim: String,
@@ -53,76 +62,89 @@ class AgentRunner
             flow<AgentEvent> {
                 val systemPrompt = promptLoader.load(AGENT_PROMPT)
                 val toolResults = mutableListOf<ToolResult>()
-                var perplexityResult = PerplexityResult.EMPTY
+                val perplexityResult = PerplexityResult.EMPTY
+
+                val imageAnalysis =
+                    if (imagePath != null) {
+                        emit(AgentEvent.ToolRequested("analyze_image", imagePath))
+                        Log.i(TAG, "Agent: analyzing image at $imagePath")
+
+                        val output =
+                            runCatching {
+                                engine
+                                    .generateWithImage(IMAGE_ANALYSIS_PROMPT, imagePath)
+                                    .trim()
+                                    .ifBlank { "Image analysis returned no text." }
+                            }.getOrElse { error ->
+                                val message = error.message ?: error.javaClass.simpleName
+                                Log.w(TAG, "Agent: image analysis failed: $message", error)
+                                "Could not analyze image: $message"
+                            }
+
+                        val promptOutput = output.take(MAX_IMAGE_ANALYSIS_CHARS)
+                        toolResults.add(ToolResult("analyze_image", imagePath, promptOutput))
+                        emit(AgentEvent.ToolCompleted("analyze_image", output.take(120)))
+                        promptOutput
+                    } else {
+                        ""
+                    }
 
                 val userMessage =
-                    if (imagePath != null) {
-                        "$claim\n\n[Image attached]"
-                    } else {
-                        claim
+                    buildImageAwareClaim(
+                        claim = claim,
+                        imageAnalysis = imageAnalysis,
+                    )
+
+                val plannerJson =
+                    runCatching {
+                        engine.generatePlannerJson(userMessage)
+                    }.getOrElse { error ->
+                        val message = error.message ?: error.javaClass.simpleName
+                        Log.w(TAG, "Agent: verification planner generation failed: $message", error)
+                        ""
                     }
+                Log.i(TAG, "Agent: planner output ${plannerJson.length} chars")
 
-                val initialPrompt = "${systemPrompt.trim()}\n\n---\n\nUser's post:\n\n$userMessage"
+                val proposedPlan = VerificationPlanParser.parse(plannerJson, fallbackClaim = claim)
+                val approvedPlan = VerificationPolicy.approve(proposedPlan, networkAvailable = true)
 
-                Log.i(TAG, "Agent: sending initial prompt (${initialPrompt.length} chars)")
-                val firstResponse = engine.generate(initialPrompt)
-                Log.i(TAG, "Agent: first response (${firstResponse.length} chars): ${firstResponse.take(100)}")
+                emit(AgentEvent.ToolRequested("verification_plan", userMessage.take(MAX_TOOL_EVENT_INPUT_CHARS)))
+                emit(
+                    AgentEvent.ToolCompleted(
+                        "verification_plan",
+                        "Approved ${approvedPlan.toolCalls.size} verification tool call(s)",
+                    ),
+                )
 
-                val calls =
-                    if (ToolCallParser.hasToolCalls(firstResponse)) {
-                        ToolCallParser.parse(firstResponse)
-                    } else {
-                        Log.i(TAG, "Agent: no tool calls in response, auto-searching as fallback")
-                        val query = engine.extractSearchKeywords(claim)
-                        if (query.isNotBlank()) listOf(ToolCall.SearchWeb(query)) else emptyList()
-                    }
-
-                if (calls.isEmpty()) {
-                    Log.i(TAG, "Agent: no tools to call, returning direct response")
-                    emit(AgentEvent.TokenGenerated(firstResponse))
-                    emit(AgentEvent.Done(firstResponse, toolResults, perplexityResult))
-                    return@flow
+                approvedPlan.toolCalls.forEach { call ->
+                    emit(AgentEvent.ToolRequested(call.toolName, call.toEventInput()))
                 }
 
-                Log.i(TAG, "Agent: ${calls.size} tool call(s) to execute")
+                Log.i(TAG, "Agent: executing ${approvedPlan.toolCalls.size} verification tool call(s)")
+                val verificationReport = verificationOrchestrator.verify(approvedPlan)
 
-                val toolOutputs = StringBuilder()
-                for (call in calls.take(2)) {
-                    when (call) {
-                        is ToolCall.SearchWeb -> {
-                            emit(AgentEvent.ToolRequested("search_web", call.query))
-                            Log.i(TAG, "Agent: executing search_web('${call.query}')")
-
-                            perplexityResult =
-                                runCatching { perplexity.search(call.query) }
-                                    .getOrDefault(PerplexityResult.EMPTY)
-
-                            val output = perplexityResult.text.ifBlank { "No results found." }
-                            toolResults.add(ToolResult("search_web", call.query, output.take(2000)))
-                            emit(AgentEvent.ToolCompleted("search_web", "${perplexityResult.sources.size} sources found"))
-
-                            toolOutputs.append("\n\n## search_web results for \"${call.query}\":\n$output")
-                        }
-
-                        is ToolCall.AnalyzeImage -> {
-                            if (imagePath != null) {
-                                emit(AgentEvent.ToolRequested("analyze_image", imagePath))
-                                val description =
-                                    runCatching {
-                                        engine.generateWithImage(
-                                            "Describe this image in detail. Extract any visible text.",
-                                            imagePath,
-                                        )
-                                    }.getOrDefault("Could not analyze image.")
-                                toolResults.add(ToolResult("analyze_image", imagePath, description.take(1000)))
-                                emit(AgentEvent.ToolCompleted("analyze_image", "Image analyzed"))
-                                toolOutputs.append("\n\n## analyze_image results:\n$description")
-                            }
-                        }
-                    }
+                verificationReport.toolResults.forEach { result ->
+                    toolResults.add(result.toLegacyToolResult())
+                    emit(AgentEvent.ToolCompleted(result.toolName, result.toEventOutput()))
                 }
 
-                val followUpPrompt = "$initialPrompt\n\nYou called tools and got these results:$toolOutputs\n\nNow write your Note based on the evidence above."
+                val evidenceContext = EvidenceFormatter.format(verificationReport)
+                val followUpPrompt =
+                    """
+                    ${systemPrompt.trim()}
+
+                    ---
+
+                    User's post:
+
+                    $userMessage
+
+                    $evidenceContext
+
+                    Write the final Resibo Note using the verification evidence above. Use only grounded evidence
+                    from the report. If the evidence is insufficient, stale, or does not address the claim, say that
+                    clearly instead of relying on model memory.
+                    """.trimIndent()
 
                 Log.i(TAG, "Agent: sending follow-up prompt (${followUpPrompt.length} chars)")
 
@@ -133,11 +155,80 @@ class AgentRunner
                 }
 
                 Log.i(TAG, "Agent: done, final Note ${accumulated.length} chars")
-                emit(AgentEvent.Done(accumulated, toolResults, perplexityResult))
+                emit(
+                    AgentEvent.Done(
+                        finalNote = accumulated,
+                        toolResults = toolResults,
+                        perplexityResult = perplexityResult,
+                        verificationReport = verificationReport,
+                    ),
+                )
             }.flowOn(Dispatchers.Default)
 
         companion object {
             private const val TAG = "AgentRunner"
             private const val AGENT_PROMPT = "agent_system.md"
+            private const val IMAGE_ANALYSIS_PROMPT =
+                "Describe this image for fact-checking. Extract all visible text exactly when possible, " +
+                    "identify the main claim or implication, name visible people/places/logos only if clear, " +
+                    "and note if it appears to be a meme, screenshot, document, chart, or edited image."
+            private const val MAX_IMAGE_ANALYSIS_CHARS = 2500
         }
     }
+
+internal fun buildImageAwareClaim(
+    claim: String,
+    imageAnalysis: String,
+): String {
+    val trimmedClaim = claim.trim()
+    val trimmedImageAnalysis = imageAnalysis.trim()
+    if (trimmedImageAnalysis.isBlank()) return trimmedClaim
+
+    return buildString {
+        append(trimmedClaim)
+        append("\n\nAttached image analysis:\n")
+        append(trimmedImageAnalysis)
+    }
+}
+
+private fun VerificationToolCall.toEventInput(): String =
+    inputSummary()
+        .ifBlank { preferredDomains.joinToString(",") }
+        .take(MAX_TOOL_EVENT_INPUT_CHARS)
+
+private fun VerificationToolResult.toEventOutput(): String =
+    buildString {
+        append(status.name)
+        append(": ")
+        append(records.size)
+        append(" evidence record(s)")
+        error?.let {
+            append(" (")
+            append(it.take(120))
+            append(")")
+        }
+    }
+
+private fun VerificationToolResult.toLegacyToolResult(): ToolResult =
+    ToolResult(
+        toolName = toolName,
+        input = input,
+        output = toLegacySummary().take(MAX_TOOL_RESULT_CHARS),
+    )
+
+private fun VerificationToolResult.toLegacySummary(): String =
+    buildString {
+        appendLine("Status: ${status.name}")
+        if (rawSummary.isNotBlank()) {
+            appendLine("Summary: $rawSummary")
+        }
+        error?.let { appendLine("Error: $it") }
+        records.forEachIndexed { index, record ->
+            appendLine("Evidence ${index + 1}: ${record.title}")
+            record.url?.let { appendLine("URL: $it") }
+            appendLine("Snippet: ${record.snippet}")
+        }
+    }.trim()
+
+private const val MAX_TOOL_EVENT_INPUT_CHARS = 500
+private const val MAX_TOOL_RESULT_CHARS = 2000
