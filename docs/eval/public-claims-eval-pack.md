@@ -56,10 +56,10 @@ This pack is for manual and automated evaluation of Resibo Verification Agent Co
 
 - ID: PH-SCAM-001
 - Category: scam
-- Input claim: "GCash is giving a 10,000 peso anniversary reward through this link."
+- Input claim: "GCash is giving a 10,000 peso anniversary reward through https://gcash-anniversary-bonus.example.com/claim."
 - Language: English
 - Time sensitivity: recent
 - Required source type: official company/security advisory or reputable reporting
-- Expected behavior: Search official or reputable scam advisories. Warn when URL/source is suspicious and evidence is incomplete.
+- Expected behavior: Flag that the user-provided URL is suspicious and unverified. Search official or reputable security advisories when available, and avoid treating the reward as confirmed.
 - Gold evidence: GCash/security advisory if one exists at test time.
-- Abstention expected: No, if user-provided URL indicators and scam advisories support a cautionary Note.
+- Abstention expected: No for a cautionary scam-risk Note. Yes for confirming the reward as real unless official evidence is retrieved.
