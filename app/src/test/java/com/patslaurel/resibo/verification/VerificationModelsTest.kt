@@ -57,7 +57,19 @@ class VerificationModelsTest {
                 evidenceMode = EvidenceMode.LIVE,
             )
 
-        assertEquals(300, report.freshestFetchedAt())
+        assertEquals(300L, report.freshestFetchedAt())
         assertTrue(report.allEvidence().contains(fresh))
+    }
+
+    @Test
+    fun `verification report returns null freshest timestamp with no evidence`() {
+        val report =
+            VerificationReport(
+                plan = VerificationPlan(claim = "test"),
+                toolResults = emptyList(),
+                evidenceMode = EvidenceMode.INSUFFICIENT,
+            )
+
+        assertEquals(null, report.freshestFetchedAt())
     }
 }

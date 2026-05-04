@@ -120,5 +120,5 @@ data class VerificationReport(
 ) {
     fun allEvidence(): List<EvidenceRecord> = toolResults.flatMap { it.records }
 
-    fun freshestFetchedAt(): Long = allEvidence().maxOf { it.fetchedAt }
+    fun freshestFetchedAt(): Long? = allEvidence().maxOfOrNull { it.fetchedAt }
 }
