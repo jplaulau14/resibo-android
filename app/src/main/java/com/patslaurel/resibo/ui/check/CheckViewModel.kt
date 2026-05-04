@@ -222,12 +222,30 @@ class CheckViewModel
         private suspend fun copyToTemp(uri: Uri): File? =
             withContext(Dispatchers.IO) {
                 runCatching {
-                    val tempFile = File.createTempFile("resibo_check_", ".jpg", context.cacheDir)
-                    context.contentResolver.openInputStream(uri)?.use { input ->
-                        tempFile.outputStream().use { output -> input.copyTo(output) }
+                    val tempFile = File.createTempFile("resibo_check_", tempSuffixFor(uri), context.cacheDir)
+                    val bytesCopied =
+                        context.contentResolver.openInputStream(uri)?.use { input ->
+                            tempFile.outputStream().use { output -> input.copyTo(output) }
+                        } ?: 0L
+
+                    if (bytesCopied <= 0L) {
+                        tempFile.delete()
+                        return@runCatching null
                     }
                     tempFile
+                }.onFailure { error ->
+                    if (error is CancellationException) throw error
+                    Log.w(TAG, "Could not copy image URI to temp file: ${error.message}", error)
                 }.getOrNull()
+            }
+
+        private fun tempSuffixFor(uri: Uri): String =
+            when (context.contentResolver.getType(uri)?.lowercase()) {
+                "image/png" -> ".png"
+                "image/webp" -> ".webp"
+                "image/heic" -> ".heic"
+                "image/heif" -> ".heif"
+                else -> ".jpg"
             }
 
         private suspend fun saveNote(
