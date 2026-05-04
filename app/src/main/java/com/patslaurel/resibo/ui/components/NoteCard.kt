@@ -27,6 +27,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.patslaurel.resibo.ui.check.CheckResult
 import java.net.URI
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @Composable
 fun NoteCard(
@@ -51,6 +54,22 @@ fun NoteCard(
             )
 
             HorizontalDivider()
+
+            if (checkResult.evidenceMode.isNotBlank()) {
+                Text(
+                    text =
+                        buildString {
+                            append("Evidence: ")
+                            append(checkResult.evidenceMode.lowercase().replace('_', ' '))
+                            checkResult.evidenceFetchedAt?.let {
+                                append(" · fetched ")
+                                append(formatEvidenceTimestamp(it))
+                            }
+                        },
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
 
             MarkdownText(markdown = checkResult.analysis)
 
@@ -160,6 +179,9 @@ private fun formatResponseTime(ms: Long): String {
         "Responded in ${totalSeconds}s"
     }
 }
+
+private fun formatEvidenceTimestamp(ms: Long): String =
+    SimpleDateFormat("MMM d, yyyy", Locale.getDefault()).format(Date(ms))
 
 private fun buildShareText(result: CheckResult): String {
     val analysisSnippet =

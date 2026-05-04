@@ -31,4 +31,6 @@ data class CheckResult(
     val responseTimeMs: Long,
     val imageUri: Uri? = null,
     val toolsUsed: List<ToolResult> = emptyList(),
+    val evidenceMode: String = "",
+    val evidenceFetchedAt: Long? = null,
 )

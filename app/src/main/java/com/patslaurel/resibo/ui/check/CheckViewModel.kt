@@ -125,7 +125,27 @@ class CheckViewModel
                             }
 
                             is AgentEvent.Done -> {
-                                evidence = event.perplexityResult.sources
+                                val evidenceMode =
+                                    event.verificationReport
+                                        ?.evidenceMode
+                                        ?.name
+                                        .orEmpty()
+                                val evidenceFetchedAt = event.verificationReport?.freshestFetchedAt()
+                                evidence =
+                                    event.verificationReport
+                                        ?.allEvidence()
+                                        ?.map { record ->
+                                            FactCheckResult(
+                                                claimText = record.snippet,
+                                                claimant = "",
+                                                rating = record.stance.name,
+                                                reviewUrl = record.url.orEmpty(),
+                                                reviewTitle = record.title,
+                                                publisherName = record.sourceName,
+                                                publisherSite = record.canonicalUrl.orEmpty(),
+                                                reviewDate = record.publishedAt?.toString().orEmpty(),
+                                            )
+                                        } ?: event.perplexityResult.sources
                                 val totalTime = System.currentTimeMillis() - totalStart
                                 _state.update {
                                     it.copy(
@@ -139,6 +159,8 @@ class CheckViewModel
                                                 responseTimeMs = totalTime,
                                                 imageUri = imageUri,
                                                 toolsUsed = event.toolResults,
+                                                evidenceMode = evidenceMode,
+                                                evidenceFetchedAt = evidenceFetchedAt,
                                             ),
                                     )
                                 }
