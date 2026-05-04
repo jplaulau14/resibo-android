@@ -25,6 +25,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.patslaurel.resibo.factcheck.FactCheckResult
 import com.patslaurel.resibo.ui.check.CheckResult
 import java.net.URI
 import java.text.SimpleDateFormat
@@ -101,26 +102,36 @@ fun NoteCard(
 
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     checkResult.sources.forEach { source ->
-                        val domain = extractDomain(source.reviewUrl)
+                        val sourceUrl = source.clickableHttpUrl()
+                        val label = source.displayLabel()
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(4.dp),
                             modifier =
-                                Modifier.noRippleClickable {
-                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(source.reviewUrl))
-                                    context.startActivity(intent)
-                                },
+                                sourceUrl?.let { url ->
+                                    Modifier.noRippleClickable {
+                                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                                        context.startActivity(intent)
+                                    }
+                                } ?: Modifier,
                         ) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Outlined.OpenInNew,
-                                contentDescription = null,
-                                modifier = Modifier.size(14.dp),
-                                tint = MaterialTheme.colorScheme.primary,
-                            )
+                            if (sourceUrl != null) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Outlined.OpenInNew,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(14.dp),
+                                    tint = MaterialTheme.colorScheme.primary,
+                                )
+                            }
                             Text(
-                                text = domain,
+                                text = label,
                                 style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.primary,
+                                color =
+                                    if (sourceUrl != null) {
+                                        MaterialTheme.colorScheme.primary
+                                    } else {
+                                        MaterialTheme.colorScheme.outline
+                                    },
                             )
                         }
                     }
@@ -168,6 +179,26 @@ private fun extractDomain(url: String): String =
     } catch (_: Exception) {
         url
     }
+
+private fun FactCheckResult.displayLabel(): String =
+    extractDomain(reviewUrl)
+        .ifBlank { publisherName }
+        .ifBlank { reviewTitle }
+        .ifBlank { "Source" }
+
+private fun FactCheckResult.clickableHttpUrl(): String? {
+    val trimmedUrl = reviewUrl.trim()
+    if (trimmedUrl.isBlank()) return null
+
+    val parsed = Uri.parse(trimmedUrl)
+    val scheme = parsed.scheme?.lowercase()
+    val host = parsed.host
+    return if ((scheme == "http" || scheme == "https") && !host.isNullOrBlank()) {
+        trimmedUrl
+    } else {
+        null
+    }
+}
 
 private fun formatResponseTime(ms: Long): String {
     val totalSeconds = ms / 1000
