@@ -3,6 +3,7 @@ package com.patslaurel.resibo.verification
 import com.patslaurel.resibo.factcheck.FactCheckResult
 import com.patslaurel.resibo.factcheck.PerplexityClient
 import com.patslaurel.resibo.factcheck.PerplexityResult
+import kotlinx.coroutines.CancellationException
 import java.net.URI
 import java.util.Locale
 import javax.inject.Inject
@@ -20,6 +21,7 @@ class PerplexityDiscoveryTool
                 val result = perplexityClient.searchStrict(call.query)
                 mapResult(call, result, startedAt, System.currentTimeMillis())
             }.getOrElse { error ->
+                if (error is CancellationException) throw error
                 VerificationToolResult(
                     toolName = name,
                     input = call.inputSummary(),

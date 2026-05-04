@@ -1,5 +1,6 @@
 package com.patslaurel.resibo.verification
 
+import kotlinx.coroutines.CancellationException
 import javax.inject.Inject
 
 class LocalEvidenceTool
@@ -26,6 +27,7 @@ class LocalEvidenceTool
                     latencyMs = System.currentTimeMillis() - startedAt,
                 )
             }.getOrElse { error ->
+                if (error is CancellationException) throw error
                 VerificationToolResult(
                     toolName = name,
                     input = call.inputSummary(),

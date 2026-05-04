@@ -2,6 +2,7 @@ package com.patslaurel.resibo.verification
 
 import com.patslaurel.resibo.factcheck.FactCheckApiClient
 import com.patslaurel.resibo.factcheck.FactCheckResult
+import kotlinx.coroutines.CancellationException
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
@@ -20,6 +21,7 @@ class ClaimReviewTool
                 val results = factCheckApiClient.searchRawStrict(call.query, call.maxResults)
                 mapResults(call, results, startedAt, System.currentTimeMillis())
             }.getOrElse { error ->
+                if (error is CancellationException) throw error
                 VerificationToolResult(
                     toolName = name,
                     input = call.inputSummary(),
