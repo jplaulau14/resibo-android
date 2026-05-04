@@ -12,6 +12,7 @@ import com.patslaurel.resibo.data.entity.TraceStepEntity
 import com.patslaurel.resibo.hash.PerceptualHash
 import com.patslaurel.resibo.verification.EvidenceRecord
 import com.patslaurel.resibo.verification.EvidenceSearch
+import com.patslaurel.resibo.verification.EvidenceStore
 import com.patslaurel.resibo.verification.toEntity
 import com.patslaurel.resibo.verification.toEvidenceRecord
 import kotlinx.coroutines.flow.Flow
@@ -32,7 +33,8 @@ class NoteRepository
         private val traceStepDao: TraceStepDao,
         private val seenPostDao: SeenPostDao,
         private val evidenceRecordDao: EvidenceRecordDao,
-    ) : EvidenceSearch {
+    ) : EvidenceSearch,
+        EvidenceStore {
         /** Insert a Note with its sources and trace steps in one transaction. */
         suspend fun saveNote(
             note: NoteEntity,
@@ -106,7 +108,7 @@ class NoteRepository
             noteDao.deleteById(noteId)
         }
 
-        suspend fun saveEvidence(records: List<EvidenceRecord>) {
+        override suspend fun saveEvidence(records: List<EvidenceRecord>) {
             if (records.isEmpty()) return
 
             evidenceRecordDao.insertAll(records.map { it.toEntity() })
