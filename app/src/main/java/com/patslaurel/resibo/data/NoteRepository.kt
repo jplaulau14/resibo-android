@@ -118,10 +118,16 @@ class NoteRepository
         ): List<EvidenceRecord> {
             if (query.isBlank()) return emptyList()
 
-            return evidenceRecordDao.search(query, limit).map { it.toEvidenceRecord() }
+            val safeLimit = limit.coerceIn(MIN_EVIDENCE_RESULTS, MAX_EVIDENCE_RESULTS)
+            return evidenceRecordDao.search(query, safeLimit).map { it.toEvidenceRecord() }
         }
 
         suspend fun searchEvidence(query: String): List<EvidenceRecord> = searchEvidence(query, limit = 5)
+
+        private companion object {
+            const val MIN_EVIDENCE_RESULTS = 1
+            const val MAX_EVIDENCE_RESULTS = 10
+        }
     }
 
 /** Aggregate of a Note and its related entities. */

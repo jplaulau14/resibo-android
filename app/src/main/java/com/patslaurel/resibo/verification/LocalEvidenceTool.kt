@@ -12,9 +12,10 @@ class LocalEvidenceTool
         override suspend fun execute(call: VerificationToolCall): VerificationToolResult {
             val startedAt = System.currentTimeMillis()
             return runCatching {
+                val limit = call.maxResults.coerceIn(MIN_RESULTS, MAX_RESULTS)
                 val records =
                     evidenceSearch
-                        .searchEvidence(call.query, call.maxResults)
+                        .searchEvidence(call.query, limit)
                         .map { it.copy(sourceType = SourceType.LOCAL_CACHE) }
 
                 VerificationToolResult(
@@ -33,5 +34,10 @@ class LocalEvidenceTool
                     error = error.message ?: error.javaClass.simpleName,
                 )
             }
+        }
+
+        private companion object {
+            const val MIN_RESULTS = 1
+            const val MAX_RESULTS = 10
         }
     }

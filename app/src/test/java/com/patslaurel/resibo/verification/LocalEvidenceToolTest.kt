@@ -83,6 +83,33 @@ class LocalEvidenceToolTest {
             assertTrue(result.latencyMs >= 0)
         }
 
+    @Test
+    fun `unsafe max results is clamped before searching local evidence`() =
+        runBlocking {
+            val fake =
+                FakeEvidenceSearch(
+                    listOf(
+                        cachedRecord(title = "Cached title 1"),
+                        cachedRecord(title = "Cached title 2"),
+                        cachedRecord(title = "Cached title 3"),
+                    ),
+                )
+            val tool = LocalEvidenceTool(fake)
+
+            val result =
+                tool.execute(
+                    VerificationToolCall(
+                        toolName = VerificationToolNames.LOCAL_EVIDENCE,
+                        query = "MRT free ride",
+                        maxResults = -1,
+                    ),
+                )
+
+            assertEquals(1, fake.lastLimit)
+            assertEquals(1, result.records.size)
+            assertEquals("Cached title 1", result.records[0].title)
+        }
+
     private class FakeEvidenceSearch(
         private val records: List<EvidenceRecord> = emptyList(),
         private val error: Throwable? = null,
@@ -97,18 +124,19 @@ class LocalEvidenceToolTest {
             lastQuery = query
             lastLimit = limit
             error?.let { throw it }
-            return records
+            return records.take(limit)
         }
     }
 
     private fun cachedRecord(
         sourceName: String = "Local source",
         sourceType: SourceType = SourceType.NEWS,
+        title: String = "Cached title",
     ): EvidenceRecord =
         EvidenceRecord(
             sourceName = sourceName,
             sourceType = sourceType,
-            title = "Cached title",
+            title = title,
             trustTier = TrustTier.REPUTABLE_NEWS,
             snippet = "Cached snippet",
         )

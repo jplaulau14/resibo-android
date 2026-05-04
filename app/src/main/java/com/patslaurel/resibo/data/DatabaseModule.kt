@@ -8,6 +8,7 @@ import com.patslaurel.resibo.data.dao.NoteDao
 import com.patslaurel.resibo.data.dao.SeenPostDao
 import com.patslaurel.resibo.data.dao.SourceDao
 import com.patslaurel.resibo.data.dao.TraceStepDao
+import com.patslaurel.resibo.verification.EvidenceSearch
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -49,4 +50,7 @@ object DatabaseModule {
 
     @Provides
     fun provideEvidenceRecordDao(db: ResiboDatabase): EvidenceRecordDao = db.evidenceRecordDao()
+
+    @Provides
+    fun provideEvidenceSearch(noteRepository: NoteRepository): EvidenceSearch = noteRepository
 }
