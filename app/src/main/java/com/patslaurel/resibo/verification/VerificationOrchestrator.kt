@@ -22,7 +22,9 @@ class VerificationOrchestrator
                     .flatMap { it.records }
                     .filterNot { it.sourceType == SourceType.LOCAL_CACHE }
 
-            evidenceStore.saveEvidence(recordsToStore)
+            runCatching {
+                evidenceStore.saveEvidence(recordsToStore)
+            }
 
             return VerificationReport(
                 plan = plan,

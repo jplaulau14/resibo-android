@@ -103,12 +103,42 @@ class VerificationOrchestratorTest {
             assertEquals(listOf(userRecord), store.savedRecords)
         }
 
+    @Test
+    fun `store failure still returns report with tool results and evidence mode`() =
+        runBlocking {
+            val onlineRecord = record(SourceType.FACT_CHECK, "Online evidence")
+            val tool = FakeTool("online", records = listOf(onlineRecord))
+            val orchestrator =
+                VerificationOrchestrator(
+                    listOf(tool),
+                    FailingEvidenceStore(),
+                )
+            val plan =
+                VerificationPlan(
+                    claim = "Persistence failure claim",
+                    toolCalls = listOf(VerificationToolCall(toolName = "online", query = "online query")),
+                )
+
+            val report = orchestrator.verify(plan)
+
+            assertEquals(EvidenceMode.LIVE, report.evidenceMode)
+            assertEquals(listOf("online"), report.toolResults.map { it.toolName })
+            assertEquals(ToolStatus.SUCCESS, report.toolResults[0].status)
+            assertEquals(listOf(onlineRecord), report.toolResults[0].records)
+            assertEquals(listOf("online query"), tool.executedInputs)
+        }
+
     private class FakeEvidenceStore : EvidenceStore {
         val savedRecords = mutableListOf<EvidenceRecord>()
 
         override suspend fun saveEvidence(records: List<EvidenceRecord>) {
             savedRecords += records
         }
+    }
+
+    private class FailingEvidenceStore : EvidenceStore {
+        override suspend fun saveEvidence(records: List<EvidenceRecord>) =
+            throw IllegalStateException("database unavailable")
     }
 
     private class FakeTool(
