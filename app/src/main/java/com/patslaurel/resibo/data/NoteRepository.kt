@@ -1,5 +1,6 @@
 package com.patslaurel.resibo.data
 
+import com.patslaurel.resibo.data.dao.EvidenceRecordDao
 import com.patslaurel.resibo.data.dao.NoteDao
 import com.patslaurel.resibo.data.dao.SeenPostDao
 import com.patslaurel.resibo.data.dao.SourceDao
@@ -9,6 +10,9 @@ import com.patslaurel.resibo.data.entity.SeenPostEntity
 import com.patslaurel.resibo.data.entity.SourceEntity
 import com.patslaurel.resibo.data.entity.TraceStepEntity
 import com.patslaurel.resibo.hash.PerceptualHash
+import com.patslaurel.resibo.verification.EvidenceRecord
+import com.patslaurel.resibo.verification.toEntity
+import com.patslaurel.resibo.verification.toEvidenceRecord
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -26,6 +30,7 @@ class NoteRepository
         private val sourceDao: SourceDao,
         private val traceStepDao: TraceStepDao,
         private val seenPostDao: SeenPostDao,
+        private val evidenceRecordDao: EvidenceRecordDao,
     ) {
         /** Insert a Note with its sources and trace steps in one transaction. */
         suspend fun saveNote(
@@ -98,6 +103,21 @@ class NoteRepository
 
         suspend fun deleteNote(noteId: Long) {
             noteDao.deleteById(noteId)
+        }
+
+        suspend fun saveEvidence(records: List<EvidenceRecord>) {
+            if (records.isEmpty()) return
+
+            evidenceRecordDao.insertAll(records.map { it.toEntity() })
+        }
+
+        suspend fun searchEvidence(
+            query: String,
+            limit: Int = 5,
+        ): List<EvidenceRecord> {
+            if (query.isBlank()) return emptyList()
+
+            return evidenceRecordDao.search(query, limit).map { it.toEvidenceRecord() }
         }
     }
 

@@ -3,6 +3,7 @@ package com.patslaurel.resibo.data
 import android.content.Context
 import androidx.room.Room
 import com.patslaurel.resibo.data.crypto.KeystoreKeyProvider
+import com.patslaurel.resibo.data.dao.EvidenceRecordDao
 import com.patslaurel.resibo.data.dao.NoteDao
 import com.patslaurel.resibo.data.dao.SeenPostDao
 import com.patslaurel.resibo.data.dao.SourceDao
@@ -30,6 +31,7 @@ object DatabaseModule {
         return Room
             .databaseBuilder(context, ResiboDatabase::class.java, "resibo.db")
             .openHelperFactory(factory)
+            .addMigrations(ResiboDatabase.MIGRATION_1_2)
             .build()
     }
 
@@ -44,4 +46,7 @@ object DatabaseModule {
 
     @Provides
     fun provideSeenPostDao(db: ResiboDatabase): SeenPostDao = db.seenPostDao()
+
+    @Provides
+    fun provideEvidenceRecordDao(db: ResiboDatabase): EvidenceRecordDao = db.evidenceRecordDao()
 }
