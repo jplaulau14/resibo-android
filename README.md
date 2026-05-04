@@ -14,10 +14,9 @@ Resibo reads what you hand it directly. For current claims, it may use online ev
 |---|---|
 | Facebook / X post | A screenshot of the post (long-press → screenshot → Share → Resibo) |
 | Messenger / Viber / WhatsApp message | Long-press the message → **Share** → Resibo |
-| TikTok / Reels video | Save the video to your camera roll, then share the video file |
-| Voice memo / audio | Share the audio file directly |
+| TikTok / Reels video | A screenshot of the claim, caption, or on-screen text |
 
-Sharing just a **link** (e.g. `facebook.com/post/12345`) will get a limited reply — Resibo can't log into Facebook or fetch URLs, so it will tell you *"I can't read this without internet. Screenshot the post and send that instead."*
+Sharing just a **link** (e.g. `facebook.com/post/12345`) may get a limited reply: Resibo may not be able to access login-gated or social URLs directly, so share screenshot or text content for best results.
 
 ---
 
@@ -32,12 +31,12 @@ This is the Android client. Companion repos:
 
 ## What it does
 
-- Accepts shared posts from any Android app (text · image · video · audio)
-- Normalizes input: text extraction, perceptual hashing, Whisper-small for audio, first-frame extraction for video
-- Runs a local agent loop: claim decomposition → domain routing → RAG retrieval → reasoning → Note generation
+- Accepts shared post content from any Android app (text · image)
+- Normalizes text and screenshot/image input for local claim and image analysis
+- Runs a verification flow: claim decomposition → evidence tool planning → evidence gathering → reasoning → Note generation
 - Uses a **1B model for triage**, **4B model for reasoning** (routed by task complexity and available RAM)
-- Returns a structured Note with sources, confidence band, and explicit abstentions
-- Caches Notes locally and surfaces community Notes for previously-seen viral posts via perceptual hash matching
+- Returns a structured Note with checked evidence, source freshness, confidence band, and explicit abstentions
+- Caches verified evidence locally so repeated claims become easier to check over time
 
 ## Stack
 
