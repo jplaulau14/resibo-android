@@ -209,6 +209,26 @@ class LlmTriageEngine
             return result
         }
 
+        /**
+         * Ask the model to produce a verification plan JSON object for downstream tools.
+         */
+        fun generatePlannerJson(
+            userInput: String,
+            modelPath: File = defaultModelPath,
+        ): String {
+            val eng = ensureLoaded(modelPath)
+            val template = promptLoader.load(PromptLoader.VERIFICATION_PLANNER)
+            val prompt = "${template.trim()}\n\nUser input:\n${userInput.trim()}"
+            val message =
+                eng.createConversation().use { conversation ->
+                    conversation.sendMessage(prompt)
+                }
+            return message.contents.contents
+                .filterIsInstance<Content.Text>()
+                .joinToString("") { it.text }
+                .trim()
+        }
+
         fun warmUp(modelPath: File = defaultModelPath) {
             ensureLoaded(modelPath)
         }
