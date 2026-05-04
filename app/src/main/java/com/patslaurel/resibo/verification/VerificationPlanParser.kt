@@ -62,7 +62,6 @@ object VerificationPlanParser {
     private fun normalizeToolName(raw: String): String =
         when (raw.trim().lowercase()) {
             "perplexity", "perplexity_discovery", "search_web" -> VerificationToolNames.PERPLEXITY_DISCOVERY
-            "claim_review", "fact_check", "factcheck" -> VerificationToolNames.CLAIM_REVIEW
             "official", "official_source", "official_source_search" -> VerificationToolNames.OFFICIAL_SOURCE
             "local", "local_evidence", "local_cache" -> VerificationToolNames.LOCAL_EVIDENCE
             else -> ""

@@ -21,18 +21,19 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        val localPropsFile = rootProject.file("local.properties")
-        val pplxKey =
-            if (localPropsFile.exists()) {
-                localPropsFile
-                    .readLines()
-                    .firstOrNull { it.startsWith("PERPLEXITY_API_KEY=") }
-                    ?.substringAfter("=")
-                    ?.trim() ?: ""
-            } else {
-                ""
-            }
-        buildConfigField("String", "PERPLEXITY_API_KEY", "\"$pplxKey\"")
+        fun localProperty(name: String): String {
+            val localPropsFile = rootProject.file("local.properties")
+            if (!localPropsFile.exists()) return ""
+            return localPropsFile
+                .readLines()
+                .firstOrNull { it.startsWith("$name=") }
+                ?.substringAfter("=")
+                ?.trim()
+                ?.replace("\\", "\\\\")
+                ?.replace("\"", "\\\"") ?: ""
+        }
+
+        buildConfigField("String", "PERPLEXITY_API_KEY", "\"${localProperty("PERPLEXITY_API_KEY")}\"")
     }
 
     buildTypes {

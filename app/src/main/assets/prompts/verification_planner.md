@@ -14,7 +14,7 @@ Schema:
   "abstention_reason_if_no_evidence": "short user-facing reason",
   "tool_calls": [
     {
-      "tool_name": "local_evidence|official_source|claim_review|perplexity_discovery",
+      "tool_name": "local_evidence|official_source|perplexity_discovery",
       "query": "search query",
       "url": "",
       "max_results": 5,
@@ -26,7 +26,6 @@ Schema:
 Rules:
 - For current public claims, transport announcements, election/government claims, and disaster/weather advisories, set requires_live_evidence to true.
 - Prefer official_source for transport, weather/disaster, government, election, and public policy claims.
-- Use claim_review for claims that may already have fact-check coverage.
 - Use perplexity_discovery for broad source discovery.
 - Always include local_evidence as a candidate when useful.
 - If the input is a joke, meme, opinion, or not check-worthy, set claim_category to other and provide an abstention reason.

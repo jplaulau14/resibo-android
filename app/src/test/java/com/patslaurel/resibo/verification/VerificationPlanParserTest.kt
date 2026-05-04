@@ -25,10 +25,6 @@ class VerificationPlanParserTest {
                   "query": "MRT free ride May 2026 DOTr MRT-3",
                   "max_results": 3,
                   "preferred_domains": ["dotr.gov.ph", "mrt3.com"]
-                },
-                {
-                  "tool_name": "claim_review",
-                  "query": "MRT free ride May 2026 fact check Philippines"
                 }
               ]
             }
@@ -43,7 +39,7 @@ class VerificationPlanParserTest {
         assertTrue(plan.requiresLiveEvidence)
         assertEquals(24, plan.requiredFreshnessHours)
         assertEquals(listOf("DOTr", "MRT-3"), plan.preferredSources)
-        assertEquals(2, plan.toolCalls.size)
+        assertEquals(1, plan.toolCalls.size)
         assertEquals(VerificationToolNames.OFFICIAL_SOURCE, plan.toolCalls[0].toolName)
         assertEquals(listOf("dotr.gov.ph", "mrt3.com"), plan.toolCalls[0].preferredDomains)
     }

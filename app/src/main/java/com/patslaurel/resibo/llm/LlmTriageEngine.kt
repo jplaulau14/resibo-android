@@ -182,7 +182,7 @@ class LlmTriageEngine
 
         /**
          * Ask the model to extract English search keywords from any-language input.
-         * Returns a short string of keywords for the Fact Check API.
+         * Returns a short string of keywords for source-discovery tools.
          * Fast — tiny output budget, reuses already-loaded engine.
          */
         fun extractSearchKeywords(
@@ -240,7 +240,7 @@ class LlmTriageEngine
         }
 
         /**
-         * Build the prompt, optionally prepending fact-check evidence from the API.
+         * Build the prompt, optionally prepending gathered evidence.
          * When [evidenceContext] is non-empty, the model sees real sources before the
          * user's claim — dramatically improving citation quality.
          */

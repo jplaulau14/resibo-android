@@ -53,7 +53,7 @@ class VerificationPolicyTest {
                 toolCalls =
                     listOf(
                         VerificationToolCall(toolName = VerificationToolNames.PERPLEXITY_DISCOVERY, query = "PAGASA warning"),
-                        VerificationToolCall(toolName = VerificationToolNames.CLAIM_REVIEW, query = "PAGASA warning"),
+                        VerificationToolCall(toolName = VerificationToolNames.OFFICIAL_SOURCE, query = "PAGASA warning"),
                     ),
             )
 
@@ -91,8 +91,8 @@ class VerificationPolicyTest {
                     listOf(
                         VerificationToolCall("bad_tool", query = "bad"),
                         VerificationToolCall(VerificationToolNames.PERPLEXITY_DISCOVERY, query = "one"),
-                        VerificationToolCall(VerificationToolNames.CLAIM_REVIEW, query = "two"),
-                        VerificationToolCall(VerificationToolNames.OFFICIAL_SOURCE, query = "three"),
+                        VerificationToolCall(VerificationToolNames.OFFICIAL_SOURCE, query = "two"),
+                        VerificationToolCall(VerificationToolNames.PERPLEXITY_DISCOVERY, query = "three"),
                         VerificationToolCall(VerificationToolNames.PERPLEXITY_DISCOVERY, query = "four"),
                     ),
             )

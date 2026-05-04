@@ -15,10 +15,6 @@ object VerificationToolModule {
 
     @Provides
     @IntoSet
-    fun provideClaimReviewTool(tool: ClaimReviewTool): VerificationTool = tool
-
-    @Provides
-    @IntoSet
     fun provideOfficialSourceTool(tool: OfficialSourceTool): VerificationTool = tool
 
     @Provides

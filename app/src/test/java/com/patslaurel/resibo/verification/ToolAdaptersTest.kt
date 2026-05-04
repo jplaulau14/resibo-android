@@ -47,40 +47,6 @@ class ToolAdaptersTest {
     }
 
     @Test
-    fun `claim review maps as verified fact check evidence and false rating refutes`() {
-        val result =
-            ClaimReviewTool.mapResults(
-                call =
-                    VerificationToolCall(
-                        toolName = VerificationToolNames.CLAIM_REVIEW,
-                        query = "Marcos gold",
-                    ),
-                results =
-                    listOf(
-                        FactCheckResult(
-                            claimText = "Marcos gold exists in Vatican",
-                            claimant = "",
-                            rating = "False",
-                            reviewUrl = "https://verafiles.org/example",
-                            reviewTitle = "Fact check title",
-                            publisherName = "Vera Files",
-                            publisherSite = "verafiles.org",
-                            reviewDate = "2024-01-02T00:00:00Z",
-                        ),
-                    ),
-                startedAt = 50,
-                finishedAt = 70,
-            )
-
-        assertEquals(ToolStatus.SUCCESS, result.status)
-        assertEquals(SourceType.FACT_CHECK, result.records[0].sourceType)
-        assertEquals(TrustTier.VERIFIED_FACT_CHECK, result.records[0].trustTier)
-        assertEquals(EvidenceStance.REFUTES, result.records[0].stance)
-        assertEquals(1704153600000L, result.records[0].publishedAt)
-        assertTrue(result.records[0].snippet.contains("Rating: False"))
-    }
-
-    @Test
     fun `official source keeps only allowlisted domains as official`() {
         val result =
             OfficialSourceTool.mapPerplexityResult(

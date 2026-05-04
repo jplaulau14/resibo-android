@@ -2,7 +2,6 @@ package com.patslaurel.resibo.verification
 
 object VerificationToolNames {
     const val PERPLEXITY_DISCOVERY = "perplexity_discovery"
-    const val CLAIM_REVIEW = "claim_review"
     const val OFFICIAL_SOURCE = "official_source"
     const val LOCAL_EVIDENCE = "local_evidence"
 }

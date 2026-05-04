@@ -5,7 +5,6 @@ object VerificationPolicy {
         setOf(
             VerificationToolNames.LOCAL_EVIDENCE,
             VerificationToolNames.PERPLEXITY_DISCOVERY,
-            VerificationToolNames.CLAIM_REVIEW,
             VerificationToolNames.OFFICIAL_SOURCE,
         )
 
