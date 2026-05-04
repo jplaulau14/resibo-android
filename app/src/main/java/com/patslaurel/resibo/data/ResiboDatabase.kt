@@ -23,7 +23,7 @@ import com.patslaurel.resibo.data.entity.TraceStepEntity
         SeenPostEntity::class,
         EvidenceRecordEntity::class,
     ],
-    version = 2,
+    version = 3,
     exportSchema = true,
 )
 abstract class ResiboDatabase : RoomDatabase() {
@@ -76,6 +76,14 @@ abstract class ResiboDatabase : RoomDatabase() {
                         "CREATE INDEX IF NOT EXISTS `index_evidence_records_fetchedAt` " +
                             "ON `evidence_records` (`fetchedAt`)",
                     )
+                }
+            }
+
+        val MIGRATION_2_3: Migration =
+            object : Migration(2, 3) {
+                override fun migrate(db: SupportSQLiteDatabase) {
+                    db.execSQL("ALTER TABLE `notes` ADD COLUMN `evidenceMode` TEXT")
+                    db.execSQL("ALTER TABLE `notes` ADD COLUMN `evidenceFetchedAt` INTEGER")
                 }
             }
     }

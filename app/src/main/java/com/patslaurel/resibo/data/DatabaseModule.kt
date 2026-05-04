@@ -33,7 +33,7 @@ object DatabaseModule {
         return Room
             .databaseBuilder(context, ResiboDatabase::class.java, "resibo.db")
             .openHelperFactory(factory)
-            .addMigrations(ResiboDatabase.MIGRATION_1_2)
+            .addMigrations(ResiboDatabase.MIGRATION_1_2, ResiboDatabase.MIGRATION_2_3)
             .build()
     }
 

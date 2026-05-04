@@ -89,6 +89,8 @@ private fun NoteEntity.toCheckResult(storedSources: List<SourceEntity>): CheckRe
                 )
             },
         responseTimeMs = generationMs,
+        evidenceMode = evidenceMode.orEmpty(),
+        evidenceFetchedAt = evidenceFetchedAt,
     )
 
 @OptIn(ExperimentalMaterial3Api::class)

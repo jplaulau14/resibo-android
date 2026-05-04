@@ -164,7 +164,14 @@ class CheckViewModel
                                             ),
                                     )
                                 }
-                                saveNote(claim, event.finalNote, imageHash, evidence)
+                                saveNote(
+                                    prompt = claim,
+                                    responseText = event.finalNote,
+                                    imageHash = imageHash,
+                                    evidence = evidence,
+                                    evidenceMode = evidenceMode,
+                                    evidenceFetchedAt = evidenceFetchedAt,
+                                )
                             }
 
                             is AgentEvent.Error -> {
@@ -228,6 +235,8 @@ class CheckViewModel
             responseText: String,
             imageHash: Long?,
             evidence: List<FactCheckResult>,
+            evidenceMode: String,
+            evidenceFetchedAt: Long?,
         ) {
             runCatching {
                 val parsed = NoteParser.parse(responseText)
@@ -246,6 +255,8 @@ class CheckViewModel
                             outputChars = responseText.length,
                             generationMs = 0,
                             mimeType = if (imageHash != null) "image/jpeg" else "text/plain",
+                            evidenceMode = evidenceMode.ifBlank { null },
+                            evidenceFetchedAt = evidenceFetchedAt,
                             perceptualHash = imageHash?.let { PerceptualHash.toHex(it) },
                         ),
                     sources =

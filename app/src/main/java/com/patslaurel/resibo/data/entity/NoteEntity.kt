@@ -23,5 +23,7 @@ data class NoteEntity(
     val generationMs: Long,
     val perceptualHash: String? = null,
     val mimeType: String? = null,
+    val evidenceMode: String? = null,
+    val evidenceFetchedAt: Long? = null,
     val createdAt: Long = System.currentTimeMillis(),
 )
