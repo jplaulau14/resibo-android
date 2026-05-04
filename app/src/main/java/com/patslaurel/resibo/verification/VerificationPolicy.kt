@@ -23,7 +23,9 @@ object VerificationPolicy {
             ),
         )
 
-        calls.addAll(requiredOfficialCalls(plan))
+        if (networkAvailable) {
+            calls.addAll(requiredOfficialCalls(plan))
+        }
 
         plan.toolCalls
             .filter { it.toolName in allowedTools }

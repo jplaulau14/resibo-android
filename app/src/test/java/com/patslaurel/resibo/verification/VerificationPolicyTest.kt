@@ -65,6 +65,24 @@ class VerificationPolicyTest {
     }
 
     @Test
+    fun `offline mode removes policy generated official source calls`() {
+        val plan =
+            VerificationPlan(
+                claim = "Libre na ang MRT bukas",
+                claimCategory = ClaimCategory.TRANSPORT,
+                timeSensitivity = TimeSensitivity.CURRENT,
+                requiresLiveEvidence = true,
+                toolCalls = emptyList(),
+            )
+
+        val approved = VerificationPolicy.approve(plan, networkAvailable = false)
+
+        assertEquals(1, approved.toolCalls.size)
+        assertEquals(VerificationToolNames.LOCAL_EVIDENCE, approved.toolCalls[0].toolName)
+        assertTrue(approved.abstentionReasonIfNoEvidence.contains("fresh online evidence"))
+    }
+
+    @Test
     fun `drops unknown tool calls and limits call count`() {
         val plan =
             VerificationPlan(
